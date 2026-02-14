@@ -122,3 +122,46 @@ dist
 
 # Brain
 .gemini/antigravity/brain/
+
+# Credentials
+credentials/
+data/profile/*.json
+!data/profile/user_profile_template.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesize
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Mac
+.DS_Store
+
+# Generated Audio
+data/audio/tts/*.mp3
+
+# Editor
+.vscode/
+.idea/
