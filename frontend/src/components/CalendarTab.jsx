@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { API } from '../constants';
 
 const GOOGLE_OAUTH_POPUP_FEATURES = 'width=540,height=760,menubar=no,toolbar=no,status=no';
+const CALENDAR_HOURS_AHEAD = 24 * 28;
 
 export default function CalendarTab() {
     const [events, setEvents] = useState([]);
@@ -37,7 +38,7 @@ export default function CalendarTab() {
     const fetchCalendar = async () => {
         setLoading(true);
         try {
-            const res = await fetch(API.CALENDAR_SUMMARY);
+            const res = await fetch(`${API.CALENDAR_SUMMARY}?hours_ahead=${CALENDAR_HOURS_AHEAD}`);
             const data = await res.json();
             if (data.ok) {
                 setEvents(data.events || []);

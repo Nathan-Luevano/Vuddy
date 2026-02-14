@@ -9,7 +9,7 @@ import os
 import uuid
 import time
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote, urlencode
 import httpx
 
@@ -62,21 +62,24 @@ def get_summary(hours_ahead: int = 24) -> dict:
     """
     try:
         events = _load_calendar()
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         cutoff = now + timedelta(hours=hours_ahead)
 
         upcoming = []
         for event in events:
             try:
-                event_start = datetime.fromisoformat(event["start"])
-            except (ValueError, KeyError):
+                event_start = _parse_event_datetime(event["start"])
+            except (ValueError, KeyError, TypeError):
                 continue
 
             if now <= event_start <= cutoff:
                 upcoming.append({
+                    "id": event.get("id", ""),
                     "title": event.get("title", ""),
                     "start": event.get("start", ""),
                     "end": event.get("end", ""),
+                    "location": event.get("location", ""),
+                    "source": event.get("source", ""),
                 })
 
         # Sort by start time
@@ -289,3 +292,27 @@ def _cleanup_oauth_states() -> None:
     expired = [key for key, expiry in _oauth_states.items() if expiry < now]
     for key in expired:
         _oauth_states.pop(key, None)
+
+
+def _parse_event_datetime(raw_value: str) -> datetime:
+    """
+    Parse an event datetime into timezone-aware UTC datetime.
+    Supports:
+    - 2026-02-16T16:30:00-05:00
+    - 2026-02-16T21:30:00Z
+    - 2026-02-16 (all-day)
+    """
+    raw = (raw_value or "").strip()
+    if not raw:
+        raise ValueError("empty datetime")
+
+    # Date-only event from Google Calendar.
+    if len(raw) == 10 and raw.count("-") == 2:
+        dt = datetime.fromisoformat(f"{raw}T00:00:00")
+        return dt.replace(tzinfo=timezone.utc)
+
+    normalized = raw.replace("Z", "+00:00")
+    dt = datetime.fromisoformat(normalized)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
