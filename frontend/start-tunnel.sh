@@ -10,6 +10,7 @@ BACKEND_PORT=8000
 BACKEND_HOST=0.0.0.0
 BACKEND_CMD="${BACKEND_CMD:-}"
 BACKEND_STARTED_BY_SCRIPT=0
+NO_TUNNEL="${NO_TUNNEL:-0}"
 
 choose_backend_cmd() {
   if [ -n "$BACKEND_CMD" ]; then
@@ -55,7 +56,13 @@ trap cleanup INT TERM
 if ! command -v cloudflared &>/dev/null; then
   echo "📦 Installing cloudflared to ~/.local/bin..."
   mkdir -p "$HOME/.local/bin"
-  curl -sL -o "$HOME/.local/bin/cloudflared" https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+  if ! curl -fL --connect-timeout 8 --max-time 45 -o "$HOME/.local/bin/cloudflared" \
+    https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64; then
+    echo "❌ Failed to download cloudflared (network/DNS issue)."
+    echo "   You can still run local app without tunnel:"
+    echo "   NO_TUNNEL=1 ./start-tunnel.sh"
+    exit 1
+  fi
   chmod +x "$HOME/.local/bin/cloudflared"
   export PATH="$HOME/.local/bin:$PATH"
   echo "✅ cloudflared installed"
@@ -106,13 +113,35 @@ npm run dev &
 VITE_PID=$!
 
 echo "⏳ Waiting for Vite..."
+VITE_READY=0
 for i in $(seq 1 40); do
   if curl -s "http://localhost:$VITE_PORT" >/dev/null 2>&1; then
+    VITE_READY=1
     echo "✅ Vite is ready!"
     break
   fi
+  if ! kill -0 "$VITE_PID" >/dev/null 2>&1; then
+    echo "❌ Vite process exited early."
+    wait "$VITE_PID" || true
+    exit 1
+  fi
   sleep 0.5
 done
+
+if [ "$VITE_READY" -ne 1 ]; then
+  echo "❌ Vite did not become ready on :$VITE_PORT"
+  exit 1
+fi
+
+echo ""
+echo "✅ Local app is up:"
+echo "   Frontend: http://localhost:$VITE_PORT"
+echo "   Backend : http://localhost:$BACKEND_PORT"
+
+if [ "$NO_TUNNEL" = "1" ]; then
+  echo "ℹ️ NO_TUNNEL=1 set, skipping Cloudflare tunnel."
+  wait
+fi
 
 echo ""
 echo "🌐 Starting Cloudflare tunnel..."
@@ -121,5 +150,13 @@ echo "   Look for the *.trycloudflare.com URL below."
 echo ""
 cloudflared tunnel --url "http://localhost:$VITE_PORT" &
 TUNNEL_PID=$!
+
+# If tunnel dies quickly, fail loudly instead of appearing hung.
+sleep 2
+if ! kill -0 "$TUNNEL_PID" >/dev/null 2>&1; then
+  echo "❌ Cloudflare tunnel exited early."
+  echo "   Run local only with: NO_TUNNEL=1 ./start-tunnel.sh"
+  exit 1
+fi
 
 wait
