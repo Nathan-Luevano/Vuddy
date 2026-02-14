@@ -212,6 +212,38 @@ export function useAudio(audioContextRef) {
                 } catch (err) {
                     lastError = err;
                     console.warn(`[Audio] Candidate failed: ${candidate}`, err);
+
+                    // Safari fallback: fetch bytes and force MIME type in Blob.
+                    // This avoids media decode issues when upstream headers are inconsistent.
+                    try {
+                        const mimeType = format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+                        const resp = await fetch(candidate, { cache: 'no-store' });
+                        if (!resp.ok) {
+                            throw new Error(`fetch failed status=${resp.status}`);
+                        }
+                        const arrayBuffer = await resp.arrayBuffer();
+                        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+                            throw new Error('empty audio payload');
+                        }
+                        const blob = new Blob([arrayBuffer], { type: mimeType });
+                        cleanupObjectUrl();
+                        const blobUrl = URL.createObjectURL(blob);
+                        objectUrlRef.current = blobUrl;
+                        setLastAudioUrl(blobUrl);
+                        audioEl.src = blobUrl;
+                        await audioEl.play();
+                        if (playbackTokenRef.current !== token) {
+                            audioEl.pause();
+                            return;
+                        }
+                        setLastAudioEvent('play-via-blob-fallback');
+                        setAutoplayBlocked(false);
+                        setAudioState(AUDIO_STATE.PLAYING);
+                        return;
+                    } catch (blobErr) {
+                        lastError = blobErr;
+                        console.warn(`[Audio] Blob fallback failed: ${candidate}`, blobErr);
+                    }
                 }
             }
             throw lastError || new Error('No playable audio source');
