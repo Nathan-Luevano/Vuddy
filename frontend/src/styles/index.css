@@ -194,6 +194,26 @@ button {
   }
 }
 
+@keyframes orbit-slow {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg) scale(1.04);
+  }
+}
+
+@keyframes drift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate3d(16px, -12px, 0);
+    opacity: 0.8;
+  }
+}
+
 /* ========================================
    APP LAYOUT
    ======================================== */
@@ -246,6 +266,7 @@ button {
   transition: opacity var(--transition-normal);
   user-select: none;
   -webkit-user-select: none;
+  overflow: hidden;
 }
 
 .wake-screen.fading {
@@ -254,6 +275,8 @@ button {
 }
 
 .wake-screen__icon {
+  position: relative;
+  z-index: 3;
   width: 96px;
   height: 96px;
   margin-bottom: var(--space-lg);
@@ -262,6 +285,8 @@ button {
 }
 
 .wake-screen__title {
+  position: relative;
+  z-index: 3;
   font-size: var(--font-size-xl);
   font-weight: 700;
   color: var(--text-primary);
@@ -269,8 +294,65 @@ button {
 }
 
 .wake-screen__subtitle {
+  position: relative;
+  z-index: 3;
   font-size: var(--font-size-sm);
   color: var(--text-muted);
+}
+
+.wake-screen__hint {
+  position: relative;
+  z-index: 3;
+  margin-top: var(--space-md);
+  font-size: var(--font-size-xs);
+  color: var(--text-dim);
+  letter-spacing: 0.6px;
+}
+
+.wake-screen__aurora {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  filter: blur(20px);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.wake-screen__aurora--one {
+  top: 12%;
+  left: 12%;
+  background: radial-gradient(circle, rgba(56, 178, 172, 0.24), rgba(56, 178, 172, 0.01) 70%);
+  animation: drift 8s ease-in-out infinite;
+}
+
+.wake-screen__aurora--two {
+  right: 8%;
+  bottom: 14%;
+  background: radial-gradient(circle, rgba(74, 144, 217, 0.28), rgba(74, 144, 217, 0.01) 70%);
+  animation: drift 10s ease-in-out infinite reverse;
+}
+
+.wake-screen__ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 1px solid rgba(138, 178, 216, 0.16);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.wake-screen__ring--outer {
+  width: 320px;
+  height: 320px;
+  animation: orbit-slow 14s linear infinite;
+}
+
+.wake-screen__ring--inner {
+  width: 250px;
+  height: 250px;
+  animation: orbit-slow 10s linear infinite reverse;
 }
 
 /* ========================================
@@ -388,6 +470,68 @@ button {
 
 .assistant-state-bar--speaking {
   color: var(--accent-blue);
+}
+
+.home-controls {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.home-controls__row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.home-controls__menu {
+  position: relative;
+}
+
+.home-controls__menu summary {
+  list-style: none;
+}
+
+.home-controls__menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.home-controls__menu-panel {
+  position: absolute;
+  right: 0;
+  margin-top: 6px;
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+  padding: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  z-index: 20;
+}
+
+.home-history-panel {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+}
+
+.home-history-panel__list {
+  max-height: 130px;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.home-prompts {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.home-prompts__summary {
+  width: fit-content;
 }
 
 .conversation-area {

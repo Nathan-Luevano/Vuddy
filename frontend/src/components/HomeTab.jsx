@@ -400,20 +400,25 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
         <div className="home-tab">
             <div className={stateBar.className}>{stateBar.text}</div>
 
-            <div style={{ display: 'grid', gap: '8px', marginTop: '8px' }}>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="home-controls">
+                <div className="home-controls__row">
                     <button className="quick-suggestion-btn" onClick={createAndSwitchConversation}>New Chat</button>
-                    <button className="quick-suggestion-btn" onClick={() => setAutoSpeak((prev) => !prev)}>
-                        Auto Speak: {autoSpeak ? 'On' : 'Off'}
-                    </button>
-                    <button className="quick-suggestion-btn" onClick={clearCurrentConversation}>Clear Current Chat</button>
                     <button className="quick-suggestion-btn" onClick={() => setHistoryOpen((prev) => !prev)}>
-                        {historyOpen ? 'Hide History' : 'Show History'}
+                        {historyOpen ? 'Hide History' : 'Chat History'}
                     </button>
+                    <details className="home-controls__menu">
+                        <summary className="quick-suggestion-btn">More</summary>
+                        <div className="home-controls__menu-panel">
+                            <button className="quick-suggestion-btn" onClick={() => setAutoSpeak((prev) => !prev)}>
+                                Auto Speak: {autoSpeak ? 'On' : 'Off'}
+                            </button>
+                            <button className="quick-suggestion-btn" onClick={clearCurrentConversation}>Clear Current Chat</button>
+                        </div>
+                    </details>
                 </div>
 
                 {historyOpen && (
-                    <div style={{ display: 'grid', gap: '8px', padding: '8px', background: 'var(--bg-elevated)', borderRadius: '10px' }}>
+                    <div className="home-history-panel">
                         <input
                             type="text"
                             className="text-input"
@@ -421,7 +426,7 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
                             value={historyQuery}
                             onChange={(e) => setHistoryQuery(e.target.value)}
                         />
-                        <div style={{ maxHeight: '130px', overflowY: 'auto', display: 'grid', gap: '6px' }}>
+                        <div className="home-history-panel__list">
                             {filteredConversations.map((conv) => (
                                 <button
                                     key={conv.id}
@@ -500,13 +505,16 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
             )}
 
             {messages.length === 0 && (
-                <div className="quick-suggestions">
-                    {QUICK_SUGGESTIONS.map((s) => (
-                        <button key={s} className="quick-suggestion-btn" onClick={() => handleSuggestion(s)}>
-                            {s}
-                        </button>
-                    ))}
-                </div>
+                <details className="home-prompts">
+                    <summary className="quick-suggestion-btn home-prompts__summary">Quick prompts</summary>
+                    <div className="quick-suggestions">
+                        {QUICK_SUGGESTIONS.map((s) => (
+                            <button key={s} className="quick-suggestion-btn" onClick={() => handleSuggestion(s)}>
+                                {s}
+                            </button>
+                        ))}
+                    </div>
+                </details>
             )}
 
             <div className="input-area">

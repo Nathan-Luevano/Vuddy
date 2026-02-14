@@ -29,6 +29,10 @@ export default function WakeScreen({ onWake }) {
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleTap()}
         >
+            <div className="wake-screen__aurora wake-screen__aurora--one" />
+            <div className="wake-screen__aurora wake-screen__aurora--two" />
+            <div className="wake-screen__ring wake-screen__ring--outer" />
+            <div className="wake-screen__ring wake-screen__ring--inner" />
             <svg className="wake-screen__icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="32" cy="32" r="30" fill="#162544" stroke="#4A90D9" strokeWidth="2" />
                 <rect x="26" y="16" width="12" height="22" rx="6" fill="#4A90D9" />
@@ -38,6 +42,7 @@ export default function WakeScreen({ onWake }) {
             </svg>
             <div className="wake-screen__title">Tap to start Vuddy</div>
             <div className="wake-screen__subtitle">Your campus desk buddy</div>
+            <div className="wake-screen__hint">Voice + Events + Calendar</div>
         </div>
     );
 }
