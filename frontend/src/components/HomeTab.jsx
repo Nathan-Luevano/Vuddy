@@ -105,10 +105,8 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
         }
     });
     const [toolStatuses, setToolStatuses] = useState([]);
-    const fallbackSpeechTimerRef = useRef(null);
     const pendingConversationIdRef = useRef(null);
     const activeConversationIdRef = useRef(null);
-    const audioStateRef = useRef(null);
     const lastUserSubmissionRef = useRef({ text: '', at: 0 });
     const lastAssistantAppendRef = useRef({ text: '', at: 0 });
     const conversationRef = useRef(null);
@@ -182,23 +180,6 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
     useEffect(() => {
         activeConversationIdRef.current = activeConversation?.id || null;
     }, [activeConversation?.id]);
-
-    useEffect(() => {
-        audioStateRef.current = audioState;
-    }, [audioState]);
-
-    const speakFallback = useCallback((text) => {
-        if (!text || !window.speechSynthesis) return;
-        try {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utterance);
-        } catch (e) {
-            console.warn('[HomeTab] speechSynthesis fallback failed:', e);
-        }
-    }, []);
 
     const updateConversation = useCallback((conversationId, updater) => {
         setConversations((prev) => prev.map((conv) => (
@@ -353,17 +334,6 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
                     });
                     lastAssistantAppendRef.current = { text, at: now };
 
-                    if (autoSpeak) {
-                        if (fallbackSpeechTimerRef.current) {
-                            clearTimeout(fallbackSpeechTimerRef.current);
-                        }
-                        fallbackSpeechTimerRef.current = setTimeout(() => {
-                            // If audio did not transition to PLAYING shortly after, use browser fallback.
-                            if (audioStateRef.current !== AUDIO_STATE.PLAYING) {
-                                speakFallback(text);
-                            }
-                        }, 1800);
-                    }
                 }
                 pendingConversationIdRef.current = null;
                 break;
@@ -395,16 +365,7 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
             default:
                 break;
         }
-    }, [lastMessage, playAudio, autoSpeak, appendMessageToConversation, AUDIO_STATE.PLAYING, speakFallback]);
-
-    useEffect(() => {
-        return () => {
-            if (fallbackSpeechTimerRef.current) {
-                clearTimeout(fallbackSpeechTimerRef.current);
-                fallbackSpeechTimerRef.current = null;
-            }
-        };
-    }, []);
+    }, [lastMessage, playAudio, autoSpeak, appendMessageToConversation]);
 
     useEffect(() => {
         if (conversationRef.current) {
