@@ -92,6 +92,12 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
     const [speechError, setSpeechError] = useState('');
     const [autoSpeak, setAutoSpeak] = useState(() => {
         try {
+            const migrated = window.localStorage.getItem('vuddy_auto_speak_v2');
+            if (migrated !== 'true') {
+                window.localStorage.setItem('vuddy_auto_speak', 'true');
+                window.localStorage.setItem('vuddy_auto_speak_v2', 'true');
+                return true;
+            }
             const saved = window.localStorage.getItem('vuddy_auto_speak');
             return saved === null ? true : saved === 'true';
         } catch {
@@ -477,7 +483,7 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
                 )}
             </div>
 
-            {(!isAudioUnlocked || autoplayBlocked) && (
+            {(!isAudioUnlocked || autoplayBlocked || hasPendingAudio) && (
                 <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                     <button className="quick-suggestion-btn" onClick={unlockAudio}>Enable Audio</button>
                     {hasPendingAudio && (
