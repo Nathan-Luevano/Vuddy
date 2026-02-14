@@ -14,10 +14,6 @@ from urllib.parse import quote, urlencode
 import httpx
 
 CALENDAR_FILE = os.getenv("CALENDAR_FILE", os.path.join("data", "calendar.json"))
-GOOGLE_CALENDAR_API_KEY = os.getenv("GOOGLE_CALENDAR_API_KEY", "")
-GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
-GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
-GOOGLE_OAUTH_REDIRECT_URI = os.getenv("GOOGLE_OAUTH_REDIRECT_URI", "").strip()
 GOOGLE_OAUTH_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_OAUTH_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
@@ -25,6 +21,10 @@ OAUTH_STATE_TTL_SEC = 600
 
 _calendar_cache: list[dict] | None = None
 _oauth_states: dict[str, float] = {}
+
+
+def _env(name: str) -> str:
+    return os.getenv(name, "").strip()
 
 
 def _load_calendar() -> list[dict]:
@@ -137,7 +137,8 @@ async def import_google_calendar(
     token = (access_token or "").strip()
     max_results = max(1, min(int(max_results or 25), 100))
 
-    if not token and not GOOGLE_CALENDAR_API_KEY:
+    google_calendar_api_key = _env("GOOGLE_CALENDAR_API_KEY")
+    if not token and not google_calendar_api_key:
         return {
             "ok": False,
             "imported": 0,
@@ -159,7 +160,7 @@ async def import_google_calendar(
     if token:
         headers["Authorization"] = f"Bearer {token}"
     else:
-        params["key"] = GOOGLE_CALENDAR_API_KEY
+        params["key"] = google_calendar_api_key
 
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
@@ -206,10 +207,11 @@ def get_google_oauth_url(redirect_uri: str = "") -> dict:
     """
     Build Google OAuth consent URL for Calendar readonly access.
     """
-    if not GOOGLE_OAUTH_CLIENT_ID:
+    google_oauth_client_id = _env("GOOGLE_OAUTH_CLIENT_ID")
+    if not google_oauth_client_id:
         return {"ok": False, "error": "GOOGLE_OAUTH_CLIENT_ID is not set"}
 
-    resolved_redirect = (redirect_uri or GOOGLE_OAUTH_REDIRECT_URI).strip()
+    resolved_redirect = (redirect_uri or _env("GOOGLE_OAUTH_REDIRECT_URI")).strip()
     if not resolved_redirect:
         return {"ok": False, "error": "Missing redirect URI"}
 
@@ -218,7 +220,7 @@ def get_google_oauth_url(redirect_uri: str = "") -> dict:
     _cleanup_oauth_states()
 
     params = {
-        "client_id": GOOGLE_OAUTH_CLIENT_ID,
+        "client_id": google_oauth_client_id,
         "redirect_uri": resolved_redirect,
         "response_type": "code",
         "scope": GOOGLE_OAUTH_SCOPE,
@@ -240,7 +242,9 @@ async def exchange_google_oauth_code(code: str, state: str, redirect_uri: str = 
     """
     code = (code or "").strip()
     state = (state or "").strip()
-    resolved_redirect = (redirect_uri or GOOGLE_OAUTH_REDIRECT_URI).strip()
+    google_oauth_client_id = _env("GOOGLE_OAUTH_CLIENT_ID")
+    google_oauth_client_secret = _env("GOOGLE_OAUTH_CLIENT_SECRET")
+    resolved_redirect = (redirect_uri or _env("GOOGLE_OAUTH_REDIRECT_URI")).strip()
 
     if not code:
         return {"ok": False, "error": "Missing authorization code"}
@@ -248,15 +252,15 @@ async def exchange_google_oauth_code(code: str, state: str, redirect_uri: str = 
         return {"ok": False, "error": "Missing OAuth state"}
     if not _is_valid_oauth_state(state):
         return {"ok": False, "error": "Invalid or expired OAuth state"}
-    if not GOOGLE_OAUTH_CLIENT_ID or not GOOGLE_OAUTH_CLIENT_SECRET:
+    if not google_oauth_client_id or not google_oauth_client_secret:
         return {"ok": False, "error": "Google OAuth client credentials are not set"}
     if not resolved_redirect:
         return {"ok": False, "error": "Missing redirect URI"}
 
     payload = {
         "code": code,
-        "client_id": GOOGLE_OAUTH_CLIENT_ID,
-        "client_secret": GOOGLE_OAUTH_CLIENT_SECRET,
+        "client_id": google_oauth_client_id,
+        "client_secret": google_oauth_client_secret,
         "redirect_uri": resolved_redirect,
         "grant_type": "authorization_code",
     }

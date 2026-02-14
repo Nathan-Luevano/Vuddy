@@ -5,19 +5,21 @@ Main entry point. Startup, health, REST routes, WebSocket, CORS, audio serving.
 
 import os
 import asyncio
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
+# Load .env file
+ROOT_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT_DIR / ".env")
+
 from backend import brain, events_service, calendar_service, profile_store, school_config
 from backend.constants import ASSISTANT_STATES, WS_TYPES_IN
 from backend.hardware_interface import create_hardware
 from backend.llm_provider import create_llm_provider
-
-# Load .env file
-load_dotenv()
 
 # Create the FastAPI app
 app = FastAPI(title="Vuddy Backend", version="1.0.0")
