@@ -191,7 +191,7 @@ async def _run_tool(tool_name: str, arguments: dict) -> dict:
         )
 
     elif tool_name == "get_recommendations":
-        return recommender.get_recommendations(
+        return await recommender.get_recommendations(
             count=arguments.get("count", 3),
         )
 

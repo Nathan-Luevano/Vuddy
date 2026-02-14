@@ -55,9 +55,12 @@ export const WAKE_WORDS = ['hey vuddy', 'vuddy'];
 // API endpoints
 export const API = {
     EVENTS: '/api/events',
+    EVENTS_DISCOVER: '/api/events/discover',
     EVENTS_RECOMMENDATIONS: '/api/events/recommendations',
+    EVENTS_SEARCH: '/api/events/search',
     CALENDAR_SUMMARY: '/api/calendar/summary',
     CALENDAR_ADD: '/api/calendar/add',
+    CALENDAR_IMPORT_GOOGLE: '/api/calendar/import/google',
     PROFILE: '/api/profile',
     HEALTH: '/health',
 };

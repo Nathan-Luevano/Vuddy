@@ -4,6 +4,7 @@ Main entry point. Startup, health, REST routes, WebSocket, CORS, audio serving.
 """
 
 import os
+import asyncio
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -122,6 +123,12 @@ async def api_recommendations(count: int = 3):
     return result
 
 
+@app.get("/api/events/search")
+async def api_events_search(q: str, city: str = "", size: int = 10):
+    """Search real-time events (Ticketmaster) with seed fallback."""
+    return await events_service.search_realtime_events(query=q, city=city, size=size)
+
+
 @app.get("/api/calendar/summary")
 async def api_calendar_summary(hours_ahead: int = 24):
     """Get upcoming calendar events."""
@@ -138,6 +145,16 @@ async def api_calendar_add(body: dict):
         notes=body.get("notes", ""),
     )
     return result
+
+
+@app.post("/api/calendar/import/google")
+async def api_calendar_import_google(body: dict):
+    """Import Google Calendar events into local calendar store."""
+    return await calendar_service.import_google_calendar(
+        calendar_id=body.get("calendar_id", "primary"),
+        access_token=body.get("access_token", ""),
+        max_results=body.get("max_results", 25),
+    )
 
 
 @app.get("/api/profile")
@@ -210,6 +227,39 @@ async def websocket_endpoint(ws: WebSocket):
     # Clear chat history for new connection
     brain.clear_history()
 
+    current_turn_task: asyncio.Task | None = None
+
+    async def set_idle_state():
+        try:
+            await ws.send_json({"type": "assistant_state", "state": "idle"})
+        except Exception:
+            pass
+        if hardware:
+            await hardware.set_led_state("idle")
+
+    async def cancel_current_turn():
+        nonlocal current_turn_task
+        if current_turn_task and not current_turn_task.done():
+            current_turn_task.cancel()
+            try:
+                await current_turn_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                print(f"[WS] Turn task ended with error during cancel: {e}")
+        current_turn_task = None
+
+    async def run_turn(text: str):
+        try:
+            await brain.process_message(text, ws, llm_provider, hardware)
+        except asyncio.CancelledError:
+            # Interruption is expected; keep it silent.
+            raise
+        except Exception as e:
+            print(f"[WS] Turn task error: {e}")
+        finally:
+            await set_idle_state()
+
     try:
         while True:
             data = await ws.receive_json()
@@ -218,11 +268,8 @@ async def websocket_endpoint(ws: WebSocket):
             if msg_type in ("transcript_final", "chat"):
                 text = data.get("text", "").strip()
                 if text:
-                    await brain.process_message(text, ws, llm_provider, hardware)
-                    # After speaking, return to idle
-                    await ws.send_json({"type": "assistant_state", "state": "idle"})
-                    if hardware:
-                        await hardware.set_led_state("idle")
+                    await cancel_current_turn()
+                    current_turn_task = asyncio.create_task(run_turn(text))
 
             elif msg_type == "start_listening":
                 if hardware:
@@ -235,15 +282,15 @@ async def websocket_endpoint(ws: WebSocket):
                 await ws.send_json({"type": "assistant_state", "state": "idle"})
 
             elif msg_type == "interrupt":
-                # Cancel in-flight tasks (best-effort), reset state
-                if hardware:
-                    await hardware.set_led_state("idle")
-                await ws.send_json({"type": "assistant_state", "state": "idle"})
+                await cancel_current_turn()
+                await set_idle_state()
 
     except WebSocketDisconnect:
         print("[WS] Client disconnected")
+        await cancel_current_turn()
     except Exception as e:
         print(f"[WS] Error: {e}")
+        await cancel_current_turn()
         try:
             await ws.send_json({
                 "type": "error",

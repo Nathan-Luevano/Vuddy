@@ -8,8 +8,11 @@ import json
 import os
 import uuid
 from datetime import datetime, timedelta
+from urllib.parse import quote
+import httpx
 
-CALENDAR_FILE = os.path.join("data", "fixtures", "calendar.json")
+CALENDAR_FILE = os.getenv("CALENDAR_FILE", os.path.join("data", "calendar.json"))
+GOOGLE_CALENDAR_API_KEY = os.getenv("GOOGLE_CALENDAR_API_KEY", "")
 
 _calendar_cache: list[dict] | None = None
 
@@ -24,7 +27,7 @@ def _load_calendar() -> list[dict]:
         with open(CALENDAR_FILE, "r") as f:
             _calendar_cache = json.load(f)
     except FileNotFoundError:
-        print(f"[CALENDAR] Fixture file not found at {CALENDAR_FILE}, using empty list")
+        print(f"[CALENDAR] File not found at {CALENDAR_FILE}, using empty list")
         _calendar_cache = []
     except json.JSONDecodeError as e:
         print(f"[CALENDAR] Invalid JSON in {CALENDAR_FILE}: {e}")
@@ -109,3 +112,81 @@ def add_item(title: str, time_iso: str, notes: str = "") -> dict:
     except Exception as e:
         print(f"[CALENDAR] Error adding item: {e}")
         return {"ok": False, "error": str(e)}
+
+
+async def import_google_calendar(
+    calendar_id: str = "primary",
+    access_token: str = "",
+    max_results: int = 25,
+) -> dict:
+    """
+    Import upcoming events from Google Calendar into local calendar fixture.
+    Supports OAuth bearer token or API key for public calendars.
+    """
+    calendar_id = (calendar_id or "primary").strip()
+    token = (access_token or "").strip()
+    max_results = max(1, min(int(max_results or 25), 100))
+
+    if not token and not GOOGLE_CALENDAR_API_KEY:
+        return {
+            "ok": False,
+            "imported": 0,
+            "error": "Google credentials missing. Provide access_token or set GOOGLE_CALENDAR_API_KEY.",
+        }
+
+    time_min = datetime.utcnow().isoformat() + "Z"
+    encoded_id = quote(calendar_id, safe="")
+    url = f"https://www.googleapis.com/calendar/v3/calendars/{encoded_id}/events"
+
+    params = {
+        "singleEvents": "true",
+        "orderBy": "startTime",
+        "timeMin": time_min,
+        "maxResults": str(max_results),
+    }
+    headers = {}
+
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    else:
+        params["key"] = GOOGLE_CALENDAR_API_KEY
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(url, params=params, headers=headers)
+        response.raise_for_status()
+        payload = response.json()
+        items = payload.get("items", [])
+    except Exception as e:
+        return {"ok": False, "imported": 0, "error": f"Google import failed: {e}"}
+
+    events = _load_calendar()
+    existing_ids = {evt.get("id") for evt in events}
+    imported = 0
+
+    for item in items:
+        start = item.get("start", {}).get("dateTime") or item.get("start", {}).get("date")
+        end = item.get("end", {}).get("dateTime") or item.get("end", {}).get("date") or start
+        if not start:
+            continue
+
+        event_id = f"gcal_{item.get('id', uuid.uuid4().hex[:8])}"
+        if event_id in existing_ids:
+            continue
+
+        events.append({
+            "id": event_id,
+            "title": item.get("summary", "Google Calendar Event"),
+            "start": start,
+            "end": end,
+            "notes": item.get("description", ""),
+            "location": item.get("location", ""),
+            "source": "google",
+        })
+        existing_ids.add(event_id)
+        imported += 1
+
+    if imported:
+        _save_calendar(events)
+
+    return {"ok": True, "imported": imported, "events_seen": len(items)}

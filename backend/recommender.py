@@ -6,7 +6,7 @@ Scores events by interest match (keyword overlap) against user profile.
 from backend import events_service, profile_store
 
 
-def get_recommendations(count: int = 3) -> dict:
+async def get_recommendations(count: int = 3) -> dict:
     """
     Get personalized event recommendations based on user interests.
     Returns: {ok: bool, events: [...], reasons: [...]}
@@ -18,20 +18,21 @@ def get_recommendations(count: int = 3) -> dict:
             i.lower() for i in profile.get("interests", [])
         )
 
-        # Get all upcoming events (next 72 hours to have a good pool)
-        all_events_result = events_service.get_events("today")
-        all_events = all_events_result.get("events", [])
+        # Pull from curated discovery feed first; fallback to seeded ranges if needed.
+        all_events = []
+        discover = await events_service.discover_events(size=20)
+        if discover.get("ok"):
+            all_events.extend(discover.get("events", []))
 
-        # Also include tomorrow and weekend events for a bigger pool
-        for time_range in ["tomorrow", "this weekend"]:
-            more = events_service.get_events(time_range)
-            for evt in more.get("events", []):
-                # Deduplicate by title+start
-                key = (evt.get("title"), evt.get("start"))
-                if not any(
-                    (e.get("title"), e.get("start")) == key for e in all_events
-                ):
-                    all_events.append(evt)
+        if not all_events:
+            all_events_result = events_service.get_events("today")
+            all_events = all_events_result.get("events", [])
+            for time_range in ["tomorrow", "this weekend"]:
+                more = events_service.get_events(time_range)
+                for evt in more.get("events", []):
+                    key = (evt.get("title"), evt.get("start"))
+                    if not any((e.get("title"), e.get("start")) == key for e in all_events):
+                        all_events.append(evt)
 
         if not all_events:
             return {"ok": True, "events": [], "reasons": []}

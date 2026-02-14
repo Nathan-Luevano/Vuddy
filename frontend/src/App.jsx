@@ -17,6 +17,7 @@ export default function App() {
     const [isAwake, setIsAwake] = useState(false);
     const [activeTab, setActiveTab] = useState(TABS.HOME);
     const [assistantState, setAssistantState] = useState(ASSISTANT_STATES.IDLE);
+    const [schoolKey, setSchoolKey] = useState('default');
     const [error, setError] = useState(null);
 
     const { sendMessage, lastMessage, isConnected, llmProvider } = useWebSocket();
@@ -28,6 +29,9 @@ export default function App() {
         switch (lastMessage.type) {
             case WS_RECV_TYPES.ASSISTANT_STATE:
                 setAssistantState(lastMessage.state);
+                if (lastMessage.school && typeof lastMessage.school === 'string') {
+                    setSchoolKey(lastMessage.school.toLowerCase().replace(/\s+/g, '_'));
+                }
                 break;
 
             case WS_RECV_TYPES.ERROR:
@@ -68,6 +72,7 @@ export default function App() {
                                 sendMessage={sendMessage}
                                 lastMessage={lastMessage}
                                 assistantState={assistantState}
+                                schoolKey={schoolKey}
                             />
                         )}
                         {activeTab === TABS.EVENTS && <EventsTab />}

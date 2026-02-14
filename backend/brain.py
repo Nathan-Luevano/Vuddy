@@ -13,6 +13,7 @@ from backend.tools import TOOL_DEFINITIONS, MAX_TOOL_CALLS_PER_TURN
 # Chat history: keep last 10 messages in memory
 _chat_history: list[dict] = []
 MAX_HISTORY = 10
+MAX_RESPONSE_CHARS = 480
 
 # Base system prompt — school-specific context is injected dynamically
 SYSTEM_PROMPT_BASE = """You are Vuddy, a friendly and helpful AI campus desk buddy for college students. You help with:
@@ -122,6 +123,10 @@ async def process_message(text: str, ws, llm_provider, hardware) -> None:
         response_text = response.get("content", "")
         if not response_text:
             response_text = "I'm sorry, I couldn't generate a response. Could you try asking again?"
+        elif len(response_text) > MAX_RESPONSE_CHARS:
+            response_text = response_text[:MAX_RESPONSE_CHARS].rstrip()
+            if not response_text.endswith(('.', '!', '?')):
+                response_text += "..."
 
         # Step 7: Send assistant_text via WS
         text_msg = {"type": "assistant_text", "text": response_text}
