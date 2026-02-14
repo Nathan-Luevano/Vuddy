@@ -165,3 +165,6 @@ data/audio/tts/*.mp3
 # Editor
 .vscode/
 .idea/
+
+
+vuddy-specs.zip
