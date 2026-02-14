@@ -5,6 +5,7 @@ Caches audio by content hash. Graceful fallback on API failure.
 
 import hashlib
 import os
+import time
 
 import httpx
 
@@ -32,7 +33,7 @@ def _get_model() -> str:
     return os.getenv("ELEVENLABS_MODEL", "eleven_turbo_v2_5")
 
 
-async def synthesize(text: str) -> str | None:
+async def synthesize(text: str, force_new: bool = False) -> str | None:
     """
     Synthesize text to speech via ElevenLabs API.
     Returns file path on success, None on failure (frontend uses browser speechSynthesis as backup).
@@ -61,9 +62,13 @@ async def synthesize(text: str) -> str | None:
     filepath = os.path.join(TTS_OUTPUT_DIR, filename)
 
     # Cache hit: return path immediately
-    if os.path.exists(filepath):
+    if not force_new and os.path.exists(filepath):
         print(f"[TTS] Cache hit -> {filepath}")
         return filepath
+
+    if force_new:
+        filename = f"{cache_key}_{int(time.time())}.mp3"
+        filepath = os.path.join(TTS_OUTPUT_DIR, filename)
 
     # Ensure output directory exists
     os.makedirs(TTS_OUTPUT_DIR, exist_ok=True)

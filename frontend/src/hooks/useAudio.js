@@ -17,6 +17,9 @@ export function useAudio(audioContextRef) {
         }
     });
     const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+    const [lastAudioError, setLastAudioError] = useState('');
+    const [lastAudioEvent, setLastAudioEvent] = useState('');
+    const [lastAudioUrl, setLastAudioUrl] = useState('');
     const audioElRef = useRef(null);
     const objectUrlRef = useRef(null);
     const playbackTokenRef = useRef(0);
@@ -34,6 +37,17 @@ export function useAudio(audioContextRef) {
             const el = new Audio();
             el.preload = 'auto';
             el.playsInline = true;
+            el.onplay = () => setLastAudioEvent('play');
+            el.onpause = () => setLastAudioEvent('pause');
+            el.onwaiting = () => setLastAudioEvent('waiting');
+            el.onstalled = () => setLastAudioEvent('stalled');
+            el.onerror = () => {
+                const code = el.error?.code ?? 'unknown';
+                const msg = `[Audio] media error code=${code}`;
+                console.error(msg, el.error);
+                setLastAudioError(msg);
+                setLastAudioEvent('error');
+            };
             audioElRef.current = el;
         }
         return audioElRef.current;
@@ -112,6 +126,8 @@ export function useAudio(audioContextRef) {
         stopAudio();
         const token = playbackTokenRef.current;
         setAudioState(AUDIO_STATE.LOADING);
+        setLastAudioError('');
+        setLastAudioEvent('loading');
         pendingAudioRef.current = { audioUrl, audioB64, format };
 
         try {
@@ -126,12 +142,15 @@ export function useAudio(audioContextRef) {
                 const blob = new Blob([bytes], { type: mimeType });
                 src = URL.createObjectURL(blob);
                 objectUrlRef.current = src;
+            } else if (src && src.startsWith('/')) {
+                src = `${window.location.origin}${src}`;
             }
 
             if (!src) {
                 setAudioState(AUDIO_STATE.IDLE);
                 return;
             }
+            setLastAudioUrl(src);
 
             const audioEl = getOrCreateAudioEl();
             audioEl.src = src;
@@ -151,6 +170,9 @@ export function useAudio(audioContextRef) {
             setAudioState(AUDIO_STATE.PLAYING);
         } catch (e) {
             console.error('[Audio] Playback failed:', e);
+            const errMsg = `[Audio] Playback failed: ${e?.name || 'Error'} ${e?.message || ''}`.trim();
+            setLastAudioError(errMsg);
+            setLastAudioEvent('playback-failed');
             cleanupObjectUrl();
             if (e?.name === 'NotAllowedError' || e?.name === 'AbortError') {
                 setAutoplayBlocked(true);
@@ -177,6 +199,9 @@ export function useAudio(audioContextRef) {
         isAudioUnlocked,
         autoplayBlocked,
         hasPendingAudio: !!pendingAudioRef.current,
+        lastAudioError,
+        lastAudioEvent,
+        lastAudioUrl,
         AUDIO_STATE,
     };
 }

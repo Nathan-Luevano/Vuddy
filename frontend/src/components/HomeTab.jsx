@@ -123,6 +123,9 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
         isAudioUnlocked,
         autoplayBlocked,
         hasPendingAudio,
+        lastAudioError,
+        lastAudioEvent,
+        lastAudioUrl,
         AUDIO_STATE,
     } = useAudio(audioContextRef);
 
@@ -465,6 +468,19 @@ export default function HomeTab({ sendMessage, lastMessage, assistantState, scho
                     </button>
                     <button className="quick-suggestion-btn" onClick={handleInterrupt}>Stop Voice</button>
                 </div>
+            )}
+
+            {(lastAudioError || autoplayBlocked) && (
+                <details className="home-audio-debug">
+                    <summary className="quick-suggestion-btn">Audio debug</summary>
+                    <div className="home-audio-debug__panel">
+                        <div>State: {audioState}</div>
+                        <div>Event: {lastAudioEvent || 'none'}</div>
+                        <div>Autoplay blocked: {autoplayBlocked ? 'yes' : 'no'}</div>
+                        {lastAudioUrl && <div>URL: {lastAudioUrl}</div>}
+                        {lastAudioError && <div>Error: {lastAudioError}</div>}
+                    </div>
+                </details>
             )}
 
             {toolStatuses.length > 0 && (

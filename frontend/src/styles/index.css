@@ -534,6 +534,23 @@ button {
   width: fit-content;
 }
 
+.home-audio-debug {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.home-audio-debug__panel {
+  display: grid;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  background: rgba(229, 62, 62, 0.1);
+  border: 1px solid rgba(229, 62, 62, 0.35);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  word-break: break-word;
+}
+
 .conversation-area {
   flex: 1;
   overflow-y: auto;

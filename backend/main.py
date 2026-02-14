@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 ROOT_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT_DIR / ".env")
 
-from backend import brain, events_service, calendar_service, profile_store, school_config
+from backend import brain, events_service, calendar_service, profile_store, school_config, elevenlabs_tts
 from backend.constants import ASSISTANT_STATES, WS_TYPES_IN
 from backend.hardware_interface import create_hardware
 from backend.llm_provider import create_llm_provider
@@ -314,6 +314,29 @@ async def audio_debug_last():
             continue
     files.sort(key=lambda item: item["mtime"], reverse=True)
     return {"ok": True, "files": files[:10]}
+
+
+@app.get("/api/audio/debug/ping")
+async def audio_debug_ping(text: str = "This is a Vuddy ElevenLabs audio diagnostics ping.", force_new: bool = True):
+    """
+    Force-generate a short TTS sample and return stream URL.
+    Useful for isolating generation vs browser playback failures.
+    """
+    audio_path = await elevenlabs_tts.synthesize(text=text, force_new=force_new)
+    if not audio_path:
+        return {"ok": False, "error": "TTS synthesis failed"}
+
+    filename = os.path.basename(audio_path)
+    try:
+        size = os.path.getsize(audio_path)
+    except Exception:
+        size = 0
+    return {
+        "ok": True,
+        "filename": filename,
+        "size": size,
+        "audio_url": f"/api/audio/tts/{filename}",
+    }
 
 
 # ── WebSocket ────────────────────────────────────────────────────────
