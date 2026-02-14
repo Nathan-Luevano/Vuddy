@@ -7,6 +7,26 @@ const AUDIO_STATE = {
     PAUSED: 'paused',
 };
 
+function resolveAudioUrl(src) {
+    if (!src) return src;
+    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:')) {
+        return src;
+    }
+    if (!src.startsWith('/')) return src;
+
+    const isDev = Boolean(import.meta?.env?.DEV);
+    const backendOriginFromEnv = (import.meta?.env?.VITE_BACKEND_ORIGIN || '').trim();
+    if (backendOriginFromEnv) {
+        return `${backendOriginFromEnv.replace(/\/$/, '')}${src}`;
+    }
+
+    if (isDev && window.location.port === '5173') {
+        // In Vite dev, route audio directly to backend to avoid proxy/media-type issues.
+        return `${window.location.protocol}//${window.location.hostname}:8000${src}`;
+    }
+    return `${window.location.origin}${src}`;
+}
+
 export function useAudio(audioContextRef) {
     const [audioState, setAudioState] = useState(AUDIO_STATE.IDLE);
     const [isAudioUnlocked, setIsAudioUnlocked] = useState(() => {
@@ -142,8 +162,8 @@ export function useAudio(audioContextRef) {
                 const blob = new Blob([bytes], { type: mimeType });
                 src = URL.createObjectURL(blob);
                 objectUrlRef.current = src;
-            } else if (src && src.startsWith('/')) {
-                src = `${window.location.origin}${src}`;
+            } else if (src) {
+                src = resolveAudioUrl(src);
             }
 
             if (!src) {
