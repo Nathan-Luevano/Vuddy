@@ -1,0 +1,44 @@
+[
+  {
+    "id": "cal_001",
+    "title": "CS 310 Lecture",
+    "start": "2026-02-14T09:00:00",
+    "end": "2026-02-14T10:15:00",
+    "notes": "Data Structures - Chapter 7: Trees"
+  },
+  {
+    "id": "cal_002",
+    "title": "Math 214 Recitation",
+    "start": "2026-02-14T11:00:00",
+    "end": "2026-02-14T11:50:00",
+    "notes": "Linear Algebra practice problems"
+  },
+  {
+    "id": "cal_003",
+    "title": "Team Meeting - Hackathon",
+    "start": "2026-02-14T14:00:00",
+    "end": "2026-02-14T15:00:00",
+    "notes": "Demo prep and final integration check"
+  },
+  {
+    "id": "cal_004",
+    "title": "Gym Session",
+    "start": "2026-02-14T17:00:00",
+    "end": "2026-02-14T18:00:00",
+    "notes": "Leg day"
+  },
+  {
+    "id": "cal_005",
+    "title": "Submit CS 310 Assignment 3",
+    "start": "2026-02-14T23:00:00",
+    "end": "2026-02-14T23:59:00",
+    "notes": "Binary search tree implementation - due on Blackboard"
+  },
+  {
+    "id": "cal_7da6816a",
+    "title": "Test Reminder",
+    "start": "2026-02-14T16:00:00",
+    "end": "2026-02-14T17:00:00",
+    "notes": "testing add"
+  }
+]

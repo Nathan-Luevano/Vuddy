@@ -1,0 +1,254 @@
+"""
+Vuddy Backend — FastAPI Application.
+Main entry point. Startup, health, REST routes, WebSocket, CORS, audio serving.
+"""
+
+import os
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+
+from backend import brain, events_service, calendar_service, profile_store, school_config
+from backend.constants import ASSISTANT_STATES, WS_TYPES_IN
+from backend.hardware_interface import create_hardware
+from backend.llm_provider import create_llm_provider
+
+# Load .env file
+load_dotenv()
+
+# Create the FastAPI app
+app = FastAPI(title="Vuddy Backend", version="1.0.0")
+
+# CORS — allow frontend dev server
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
+
+# ── Startup Singletons ──────────────────────────────────────────────
+
+llm_provider = None
+hardware = None
+
+
+@app.on_event("startup")
+async def startup():
+    """
+    Startup sequence:
+    1. Create LLM provider
+    2. Create hardware (defaults to SimHardware)
+    3. Init profile_store
+    4. Load events data
+    5. Verify ElevenLabs API key
+    """
+    global llm_provider, hardware
+
+    # Step 1: LLM provider
+    llm_provider = create_llm_provider()
+    print(f"[STARTUP] LLM provider: {llm_provider.name}")
+
+    # Step 2: Hardware
+    hardware = create_hardware()
+    print(f"[STARTUP] Hardware mode: {os.getenv('HARDWARE_MODE', 'sim')}")
+
+    # Step 3: Init profile
+    profile_store.load_profile()
+    print("[STARTUP] Profile store initialized")
+
+    # Step 4: Load events
+    events_service._load_events()
+    print("[STARTUP] Events data loaded")
+
+    # Step 5: ElevenLabs check
+    elevenlabs_key = os.getenv("ELEVENLABS_API_KEY", "")
+    if elevenlabs_key and elevenlabs_key != "your_elevenlabs_api_key_here":
+        print("[STARTUP] ElevenLabs API key: set")
+    else:
+        print("[STARTUP] ElevenLabs API key: NOT SET (text-only fallback)")
+
+    # Ensure audio output directory exists
+    os.makedirs(os.path.join("data", "audio", "tts"), exist_ok=True)
+
+    print("[STARTUP] Vuddy backend ready!")
+
+
+# ── Health Endpoint ──────────────────────────────────────────────────
+
+@app.get("/health")
+async def health_check():
+    """Health check — returns status of all subsystems."""
+    llm_ok = False
+    if llm_provider:
+        llm_ok = await llm_provider.health_check()
+
+    elevenlabs_key = os.getenv("ELEVENLABS_API_KEY", "")
+    elevenlabs_ok = bool(elevenlabs_key and elevenlabs_key != "your_elevenlabs_api_key_here")
+
+    school = school_config.get_school()
+    return {
+        "ok": True,
+        "llm_provider": llm_provider.name if llm_provider else "none",
+        "llm_reachable": llm_ok,
+        "elevenlabs": elevenlabs_ok,
+        "hardware_mode": os.getenv("HARDWARE_MODE", "sim"),
+        "school": school["short"],
+    }
+
+
+# ── REST API Routes ──────────────────────────────────────────────────
+
+@app.get("/api/events")
+async def api_events(time_range: str = "today", tags: str = ""):
+    """Get campus events filtered by time range and tags."""
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+    result = events_service.get_events(time_range=time_range, tags=tag_list)
+    return result
+
+
+@app.get("/api/events/recommendations")
+async def api_recommendations(count: int = 3):
+    """Get personalized event recommendations."""
+    from backend import recommender
+    result = recommender.get_recommendations(count=count)
+    return result
+
+
+@app.get("/api/calendar/summary")
+async def api_calendar_summary(hours_ahead: int = 24):
+    """Get upcoming calendar events."""
+    result = calendar_service.get_summary(hours_ahead=hours_ahead)
+    return result
+
+
+@app.post("/api/calendar/add")
+async def api_calendar_add(body: dict):
+    """Add a reminder or event to the calendar."""
+    result = calendar_service.add_item(
+        title=body.get("title", ""),
+        time_iso=body.get("time_iso", ""),
+        notes=body.get("notes", ""),
+    )
+    return result
+
+
+@app.get("/api/profile")
+async def api_profile_get():
+    """Get user profile."""
+    profile = profile_store.load_profile()
+    return {"ok": True, **profile}
+
+
+@app.put("/api/profile")
+async def api_profile_update(body: dict):
+    """Update user profile."""
+    profile_store.update_profile(body)
+    return {"ok": True}
+
+
+# ── School Selection ─────────────────────────────────────────────────
+
+@app.get("/api/schools")
+async def api_list_schools():
+    """List all supported schools."""
+    return school_config.list_schools()
+
+
+@app.get("/api/school")
+async def api_get_school():
+    """Get the currently active school."""
+    school = school_config.get_school()
+    return {"ok": True, **school}
+
+
+@app.put("/api/school")
+async def api_set_school(body: dict):
+    """Set the active school. Body: {"school": "gmu"}"""
+    school_id = body.get("school", "")
+    result = school_config.set_active_school(school_id)
+    if result.get("ok"):
+        brain.clear_history()  # Reset conversation for new school context
+    return result
+
+
+@app.get("/api/audio/tts/{filename}")
+async def serve_tts_audio(filename: str):
+    """Serve TTS audio files."""
+    filepath = os.path.join("data", "audio", "tts", filename)
+    if not os.path.exists(filepath):
+        return JSONResponse({"ok": False, "error": "File not found"}, status_code=404)
+    return FileResponse(filepath, media_type="audio/mpeg")
+
+
+# ── WebSocket ────────────────────────────────────────────────────────
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    """
+    WebSocket endpoint for real-time communication with frontend.
+    """
+    await ws.accept()
+
+    # On connect: send initial state
+    school = school_config.get_school()
+    await ws.send_json({
+        "type": "assistant_state",
+        "state": "idle",
+        "wake_word": os.getenv("WAKE_WORD", "hey vuddy"),
+        "llm_provider": llm_provider.name if llm_provider else "ollama",
+        "school": school["short"],
+    })
+
+    # Clear chat history for new connection
+    brain.clear_history()
+
+    try:
+        while True:
+            data = await ws.receive_json()
+            msg_type = data.get("type", "")
+
+            if msg_type in ("transcript_final", "chat"):
+                text = data.get("text", "").strip()
+                if text:
+                    await brain.process_message(text, ws, llm_provider, hardware)
+                    # After speaking, return to idle
+                    await ws.send_json({"type": "assistant_state", "state": "idle"})
+                    if hardware:
+                        await hardware.set_led_state("idle")
+
+            elif msg_type == "start_listening":
+                if hardware:
+                    await hardware.set_led_state("listening")
+                await ws.send_json({"type": "assistant_state", "state": "listening"})
+
+            elif msg_type == "stop_listening":
+                if hardware:
+                    await hardware.set_led_state("idle")
+                await ws.send_json({"type": "assistant_state", "state": "idle"})
+
+            elif msg_type == "interrupt":
+                # Cancel in-flight tasks (best-effort), reset state
+                if hardware:
+                    await hardware.set_led_state("idle")
+                await ws.send_json({"type": "assistant_state", "state": "idle"})
+
+    except WebSocketDisconnect:
+        print("[WS] Client disconnected")
+    except Exception as e:
+        print(f"[WS] Error: {e}")
+        try:
+            await ws.send_json({
+                "type": "error",
+                "message": str(e),
+                "recoverable": True,
+            })
+        except Exception:
+            pass
