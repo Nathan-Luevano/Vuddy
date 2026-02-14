@@ -3,6 +3,8 @@ import { API } from '../constants';
 
 const EVENTS_CACHE_KEY = 'vuddy.events.live.cache.v1';
 const CACHE_TTL_MS = 10 * 60 * 1000;
+const EVENTS_FETCH_SIZE = 100;
+const EVENTS_DAYS_AHEAD = 28;
 
 export default function EventsTab() {
     const [events, setEvents] = useState([]);
@@ -73,8 +75,8 @@ export default function EventsTab() {
         setLoading(true);
         try {
             const endpoint = discover
-                ? `${API.EVENTS_DISCOVER}?city=${encodeURIComponent(city || '')}&size=16`
-                : `${API.EVENTS_SEARCH}?q=${encodeURIComponent(q || 'campus events')}&city=${encodeURIComponent(city || '')}&size=16`;
+                ? `${API.EVENTS_DISCOVER}?city=${encodeURIComponent(city || '')}&size=${EVENTS_FETCH_SIZE}&days_ahead=${EVENTS_DAYS_AHEAD}`
+                : `${API.EVENTS_SEARCH}?q=${encodeURIComponent(q || 'campus events')}&city=${encodeURIComponent(city || '')}&size=${EVENTS_FETCH_SIZE}&days_ahead=${EVENTS_DAYS_AHEAD}`;
             const res = await fetch(endpoint);
             const data = await res.json();
             if (data.ok) {
@@ -189,6 +191,11 @@ export default function EventsTab() {
             <div className="events-tab__header">
                 <h2 className="events-tab__title">Campus Events</h2>
                 <div className="events-tab__meta">
+                    {!loading && (
+                        <span className="events-source-pill">
+                            {events.length} shown · next {EVENTS_DAYS_AHEAD} days
+                        </span>
+                    )}
                     {sourceLabel && (
                         <span className={`events-source-pill ${isLiveSource ? 'events-source-pill--live' : ''}`}>
                             {isLiveSource ? 'Live' : 'Fallback'}: {sourceLabel}

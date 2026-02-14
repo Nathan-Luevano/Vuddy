@@ -124,15 +124,20 @@ async def api_recommendations(count: int = 3):
 
 
 @app.get("/api/events/search")
-async def api_events_search(q: str, city: str = "", size: int = 10):
+async def api_events_search(q: str, city: str = "", size: int = 10, days_ahead: int = 28):
     """Search real-time events (Ticketmaster) with seed fallback."""
-    return await events_service.search_realtime_events(query=q, city=city, size=size)
+    return await events_service.search_realtime_events(
+        query=q,
+        city=city,
+        size=size,
+        days_ahead=days_ahead,
+    )
 
 
 @app.get("/api/events/discover")
-async def api_events_discover(city: str = "", size: int = 12):
+async def api_events_discover(city: str = "", size: int = 12, days_ahead: int = 28):
     """Get a live discovery feed for campus/student events."""
-    return await events_service.discover_events(city=city, size=size)
+    return await events_service.discover_events(city=city, size=size, days_ahead=days_ahead)
 
 
 @app.get("/api/calendar/summary")

@@ -137,7 +137,7 @@ def get_events(time_range: str = "today", tags: list[str] | None = None) -> dict
         return {"ok": False, "events": [], "error": str(e)}
 
 
-async def search_realtime_events(query: str, city: str = "", size: int = 10) -> dict:
+async def search_realtime_events(query: str, city: str = "", size: int = 10, days_ahead: int = 28) -> dict:
     """
     Search real-time events from Ticketmaster Discovery API.
     Falls back to seeded events search when API key isn't configured or on failure.
@@ -146,24 +146,30 @@ async def search_realtime_events(query: str, city: str = "", size: int = 10) -> 
     if not query:
         return {"ok": False, "events": [], "error": "query is required", "source": "none"}
 
-    size = max(1, min(size, 20))
-    cache_key = f"q={query.lower()}|city={city.lower().strip()}|size={size}"
+    size = max(1, min(size, 200))
+    days_ahead = max(7, min(days_ahead, 90))
+    cache_key = f"q={query.lower()}|city={city.lower().strip()}|size={size}|days={days_ahead}"
     cached = _get_realtime_cache(cache_key)
     if cached:
         return cached
 
     # Prefer official school feed when available.
-    school_feed = _search_school_ics_events(query=query, city=city, size=size)
+    school_feed = _search_school_ics_events(query=query, city=city, size=size, days_ahead=days_ahead)
     if school_feed.get("ok") and school_feed.get("events"):
+        school_feed["events"] = _filter_events_window(school_feed.get("events", []), days_ahead=days_ahead)[:size]
         _set_realtime_cache(cache_key, school_feed)
         return school_feed
 
     if TICKETMASTER_API_KEY:
+        now_utc = datetime.utcnow()
+        end_utc = now_utc + timedelta(days=days_ahead)
         params = {
             "apikey": TICKETMASTER_API_KEY,
             "keyword": query,
             "size": size,
             "sort": "date,asc",
+            "startDateTime": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "endDateTime": end_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         if city.strip():
             params["city"] = city.strip()
@@ -175,9 +181,11 @@ async def search_realtime_events(query: str, city: str = "", size: int = 10) -> 
             data = response.json()
             embedded = data.get("_embedded", {})
             items = embedded.get("events", [])
+            events = [_normalize_ticketmaster_event(item) for item in items]
+            events = _filter_events_window(events, days_ahead=days_ahead)[:size]
             result = {
                 "ok": True,
-                "events": [_normalize_ticketmaster_event(item) for item in items],
+                "events": events,
                 "source": "ticketmaster",
                 "live": True,
             }
@@ -188,26 +196,30 @@ async def search_realtime_events(query: str, city: str = "", size: int = 10) -> 
 
     web_result = _search_web_events(query=query, city=city, size=size)
     if web_result.get("ok") and web_result.get("events"):
+        # Web results are generally undated; keep as-is and cap to requested size.
+        web_result["events"] = web_result.get("events", [])[:size]
         _set_realtime_cache(cache_key, web_result)
         return web_result
 
-    fallback = _search_seed_events(query=query, city=city, size=size)
+    fallback = _search_seed_events(query=query, city=city, size=size, days_ahead=days_ahead)
     fallback["live"] = False
+    fallback["events"] = _filter_events_window(fallback.get("events", []), days_ahead=days_ahead)[:size]
     _set_realtime_cache(cache_key, fallback)
     return fallback
 
 
-async def discover_events(city: str = "", size: int = 12) -> dict:
+async def discover_events(city: str = "", size: int = 12, days_ahead: int = 28) -> dict:
     """
     Curated discovery feed for campus life.
     Uses cache + live provider where configured.
     """
     city = (city or "").strip()
-    size = max(1, min(size, 20))
+    size = max(1, min(size, 200))
+    days_ahead = max(7, min(days_ahead, 90))
     now = datetime.now()
     # Time-anchored query keeps results from getting stale.
     query = f"campus student university events {now.strftime('%B %Y')}"
-    result = await search_realtime_events(query=query, city=city, size=size)
+    result = await search_realtime_events(query=query, city=city, size=size, days_ahead=days_ahead)
     if not result.get("ok"):
         return result
     return {
@@ -218,10 +230,11 @@ async def discover_events(city: str = "", size: int = 12) -> dict:
         "city": city,
         "cached": True,
         "cache_ttl_sec": EVENTS_CACHE_TTL_SEC,
+        "days_ahead": days_ahead,
     }
 
 
-def _search_seed_events(query: str, city: str = "", size: int = 10) -> dict:
+def _search_seed_events(query: str, city: str = "", size: int = 10, days_ahead: int = 28) -> dict:
     events = _load_events()
     q = query.lower().strip()
     city_q = city.lower().strip()
@@ -248,6 +261,7 @@ def _search_seed_events(query: str, city: str = "", size: int = 10) -> dict:
             score += 1
         scored.append((score, event))
 
+    days_ahead = max(7, min(days_ahead, 90))
     scored.sort(key=lambda item: (item[0], item[1].get("start", "")), reverse=True)
     top = [item[1] for item in scored[:size]]
     source = "seed_fallback"
@@ -256,6 +270,7 @@ def _search_seed_events(query: str, city: str = "", size: int = 10) -> dict:
     if not top:
         source = "seed_fallback_default"
         now = datetime.now()
+        cutoff = now + timedelta(days=days_ahead)
         upcoming = []
         for event in events:
             location = event.get("location", "")
@@ -264,7 +279,9 @@ def _search_seed_events(query: str, city: str = "", size: int = 10) -> dict:
                 start_dt = datetime.fromisoformat(start_raw)
             except Exception:
                 continue
-            if start_dt < now - timedelta(days=1):
+            if start_dt < now:
+                continue
+            if start_dt > cutoff:
                 continue
             if city_q and city_q not in location.lower():
                 continue
@@ -278,7 +295,7 @@ def _search_seed_events(query: str, city: str = "", size: int = 10) -> dict:
                     start_dt = datetime.fromisoformat(start_raw)
                 except Exception:
                     continue
-                if start_dt >= now - timedelta(days=1):
+                if now <= start_dt <= cutoff:
                     upcoming.append(event)
         upcoming.sort(key=lambda evt: evt.get("start", ""))
         top = upcoming[:size]
@@ -298,7 +315,7 @@ def _search_seed_events(query: str, city: str = "", size: int = 10) -> dict:
     return {"ok": True, "events": normalized, "source": source}
 
 
-def _search_school_ics_events(query: str, city: str = "", size: int = 10) -> dict:
+def _search_school_ics_events(query: str, city: str = "", size: int = 10, days_ahead: int = 28) -> dict:
     """
     Pull events from school ICS feed (GMU Mason360) when location/context matches.
     """
@@ -320,6 +337,7 @@ def _search_school_ics_events(query: str, city: str = "", size: int = 10) -> dic
             query=query,
             city=city,
             size=size,
+            days_ahead=days_ahead,
         )
         return {
             "ok": True,
@@ -431,13 +449,14 @@ def _fetch_text_url(url: str, headers: dict[str, str] | None, params: dict[str, 
     return completed.stdout
 
 
-def _parse_school_ics(ics_text: str, query: str, city: str = "", size: int = 10) -> list[dict]:
+def _parse_school_ics(ics_text: str, query: str, city: str = "", size: int = 10, days_ahead: int = 28) -> list[dict]:
     lines = _unfold_ics_lines(ics_text)
     events: list[dict] = []
     block: dict[str, str] = {}
     in_event = False
     now_et = datetime.now(US_EASTERN)
-    cutoff = now_et + timedelta(days=90)
+    days_ahead = max(7, min(days_ahead, 90))
+    cutoff = now_et + timedelta(days=days_ahead)
     query_tokens = [t for t in re.split(r"[\W_]+", (query or "").lower()) if len(t) > 2]
 
     for line in lines:
@@ -448,7 +467,7 @@ def _parse_school_ics(ics_text: str, query: str, city: str = "", size: int = 10)
         if line == "END:VEVENT":
             if block:
                 parsed = _normalize_ics_event(block, city=city)
-                if parsed and parsed["_start_dt"] >= now_et - timedelta(days=1) and parsed["_start_dt"] <= cutoff:
+                if parsed and now_et <= parsed["_start_dt"] <= cutoff:
                     haystack = f"{parsed['title']} {parsed['description']} {parsed['location']}".lower()
                     if not query_tokens or any(token in haystack for token in query_tokens):
                         parsed.pop("_start_dt", None)
@@ -468,6 +487,43 @@ def _parse_school_ics(ics_text: str, query: str, city: str = "", size: int = 10)
 
     events.sort(key=lambda evt: evt.get("start", ""))
     return events[:size]
+
+
+def _filter_events_window(events: list[dict], days_ahead: int = 28) -> list[dict]:
+    """
+    Keep events from now to N days ahead. Events without parseable dates are kept.
+    """
+    days_ahead = max(7, min(days_ahead, 90))
+    now = datetime.now(US_EASTERN)
+    cutoff = now + timedelta(days=days_ahead)
+    filtered: list[dict] = []
+    undated: list[dict] = []
+    seen: set[str] = set()
+
+    for event in events:
+        key = f"{event.get('title','').strip().lower()}|{event.get('start','').strip()}|{event.get('location','').strip().lower()}"
+        if key in seen:
+            continue
+        seen.add(key)
+
+        start_raw = (event.get("start") or "").strip()
+        if not start_raw:
+            undated.append(event)
+            continue
+        try:
+            start_dt = datetime.fromisoformat(start_raw.replace("Z", "+00:00"))
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=US_EASTERN)
+            start_local = start_dt.astimezone(US_EASTERN)
+        except Exception:
+            undated.append(event)
+            continue
+
+        if now <= start_local <= cutoff:
+            filtered.append(event)
+
+    filtered.sort(key=lambda evt: evt.get("start", ""))
+    return filtered + undated
 
 
 def _unfold_ics_lines(ics_text: str) -> list[str]:
