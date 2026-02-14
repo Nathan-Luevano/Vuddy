@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { API } from '../constants';
 
+const GOOGLE_OAUTH_POPUP_FEATURES = 'width=540,height=760,menubar=no,toolbar=no,status=no';
+
 export default function CalendarTab() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -8,9 +10,28 @@ export default function CalendarTab() {
     const [title, setTitle] = useState('');
     const [time, setTime] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [syncingGoogle, setSyncingGoogle] = useState(false);
+    const [googleStatus, setGoogleStatus] = useState('');
 
     useEffect(() => {
         fetchCalendar();
+    }, []);
+
+    useEffect(() => {
+        const onMessage = async (event) => {
+            if (event.origin !== window.location.origin) return;
+            if (!event.data || event.data.type !== 'google_oauth_code') return;
+
+            if (!event.data.code || !event.data.state) {
+                setGoogleStatus('Google sign-in was cancelled or missing required data.');
+                setSyncingGoogle(false);
+                return;
+            }
+            await exchangeGoogleCode(event.data.code, event.data.state);
+        };
+
+        window.addEventListener('message', onMessage);
+        return () => window.removeEventListener('message', onMessage);
     }, []);
 
     const fetchCalendar = async () => {
@@ -53,6 +74,61 @@ export default function CalendarTab() {
         setSubmitting(false);
     };
 
+    const connectGoogleCalendar = async () => {
+        setSyncingGoogle(true);
+        setGoogleStatus('');
+        const redirectUri = `${window.location.origin}/google-calendar-callback.html`;
+        try {
+            const res = await fetch(`${API.CALENDAR_GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(redirectUri)}`);
+            const data = await res.json();
+            if (!data.ok || !data.auth_url) {
+                setGoogleStatus(data.error || 'Unable to start Google sign-in.');
+                setSyncingGoogle(false);
+                return;
+            }
+
+            const popup = window.open(data.auth_url, 'vuddy-google-oauth', GOOGLE_OAUTH_POPUP_FEATURES);
+            if (!popup) {
+                setGoogleStatus('Popup blocked. Please allow popups and try again.');
+                setSyncingGoogle(false);
+                return;
+            }
+        } catch (e) {
+            console.error('[Calendar] Google auth URL failed:', e);
+            setGoogleStatus('Could not reach Google auth endpoint.');
+            setSyncingGoogle(false);
+        }
+    };
+
+    const exchangeGoogleCode = async (code, state) => {
+        const redirectUri = `${window.location.origin}/google-calendar-callback.html`;
+        try {
+            const res = await fetch(API.CALENDAR_GOOGLE_EXCHANGE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code,
+                    state,
+                    redirect_uri: redirectUri,
+                    calendar_id: 'primary',
+                    max_results: 50,
+                }),
+            });
+            const data = await res.json();
+            if (!data.ok) {
+                setGoogleStatus(data.error || 'Google calendar sync failed.');
+                setSyncingGoogle(false);
+                return;
+            }
+            setGoogleStatus(`Google calendar connected. Imported ${data.imported || 0} event(s).`);
+            await fetchCalendar();
+        } catch (e) {
+            console.error('[Calendar] Google code exchange failed:', e);
+            setGoogleStatus('Google calendar sync failed.');
+        }
+        setSyncingGoogle(false);
+    };
+
     const formatTime = (iso) => {
         try {
             return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -73,13 +149,25 @@ export default function CalendarTab() {
         <div className="calendar-tab">
             <div className="calendar-tab__header">
                 <h2 className="calendar-tab__title">My Calendar</h2>
-                <button
-                    className="add-reminder-btn"
-                    onClick={() => setShowModal(true)}
-                >
-                    + Add Reminder
-                </button>
+                <div className="calendar-tab__actions">
+                    <button
+                        className="google-connect-btn"
+                        onClick={connectGoogleCalendar}
+                        disabled={syncingGoogle}
+                    >
+                        {syncingGoogle ? 'Connecting...' : 'Connect Google'}
+                    </button>
+                    <button
+                        className="add-reminder-btn"
+                        onClick={() => setShowModal(true)}
+                    >
+                        + Add Reminder
+                    </button>
+                </div>
             </div>
+            {googleStatus && (
+                <div className="calendar-google-status">{googleStatus}</div>
+            )}
 
             {loading ? (
                 <div className="loading-spinner" />

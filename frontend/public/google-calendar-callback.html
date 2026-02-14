@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Calendar Connect</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        margin: 0;
+        padding: 24px;
+        color: #111827;
+        background: #f8fafc;
+      }
+      .card {
+        max-width: 520px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 18px;
+      }
+      .title {
+        font-size: 16px;
+        margin: 0 0 8px;
+      }
+      .text {
+        font-size: 14px;
+        color: #4b5563;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1 class="title">Finishing Google connection...</h1>
+      <p class="text">You can close this window if it does not close automatically.</p>
+    </div>
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const state = params.get('state');
+        const payload = { type: 'google_oauth_code', code, state };
+        if (window.opener && window.opener !== window) {
+          window.opener.postMessage(payload, window.location.origin);
+        }
+        setTimeout(() => window.close(), 300);
+      })();
+    </script>
+  </body>
+</html>

@@ -163,6 +163,36 @@ async def api_calendar_import_google(body: dict):
     )
 
 
+@app.get("/api/calendar/google/auth-url")
+async def api_calendar_google_auth_url(redirect_uri: str = ""):
+    """Create Google OAuth consent URL for calendar access."""
+    return calendar_service.get_google_oauth_url(redirect_uri=redirect_uri)
+
+
+@app.post("/api/calendar/google/exchange")
+async def api_calendar_google_exchange(body: dict):
+    """
+    Exchange Google OAuth code and import calendar events.
+    Body: {code, state, redirect_uri?, calendar_id?, max_results?}
+    """
+    exchange = await calendar_service.exchange_google_oauth_code(
+        code=body.get("code", ""),
+        state=body.get("state", ""),
+        redirect_uri=body.get("redirect_uri", ""),
+    )
+    if not exchange.get("ok"):
+        return exchange
+
+    imported = await calendar_service.import_google_calendar(
+        calendar_id=body.get("calendar_id", "primary"),
+        access_token=exchange.get("access_token", ""),
+        max_results=body.get("max_results", 25),
+    )
+    if not imported.get("ok"):
+        return imported
+    return {"ok": True, **imported}
+
+
 @app.get("/api/profile")
 async def api_profile_get():
     """Get user profile."""

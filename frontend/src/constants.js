@@ -61,6 +61,8 @@ export const API = {
     CALENDAR_SUMMARY: '/api/calendar/summary',
     CALENDAR_ADD: '/api/calendar/add',
     CALENDAR_IMPORT_GOOGLE: '/api/calendar/import/google',
+    CALENDAR_GOOGLE_AUTH_URL: '/api/calendar/google/auth-url',
+    CALENDAR_GOOGLE_EXCHANGE: '/api/calendar/google/exchange',
     PROFILE: '/api/profile',
     SCHOOL: '/api/school',
     HEALTH: '/health',

@@ -1037,11 +1037,44 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .calendar-tab__title {
   font-size: var(--font-size-lg);
   font-weight: 700;
+}
+
+.calendar-tab__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.google-connect-btn {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-full);
+  background: #0f6fff;
+  color: #fff;
+  border: none;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.google-connect-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.calendar-google-status {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
 }
 
 .add-reminder-btn {

@@ -7,14 +7,24 @@ Optional Google Calendar API (Phase 2).
 import json
 import os
 import uuid
+import time
+import secrets
 from datetime import datetime, timedelta
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 import httpx
 
 CALENDAR_FILE = os.getenv("CALENDAR_FILE", os.path.join("data", "calendar.json"))
 GOOGLE_CALENDAR_API_KEY = os.getenv("GOOGLE_CALENDAR_API_KEY", "")
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
+GOOGLE_OAUTH_REDIRECT_URI = os.getenv("GOOGLE_OAUTH_REDIRECT_URI", "").strip()
+GOOGLE_OAUTH_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_OAUTH_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
+OAUTH_STATE_TTL_SEC = 600
 
 _calendar_cache: list[dict] | None = None
+_oauth_states: dict[str, float] = {}
 
 
 def _load_calendar() -> list[dict]:
@@ -190,3 +200,88 @@ async def import_google_calendar(
         _save_calendar(events)
 
     return {"ok": True, "imported": imported, "events_seen": len(items)}
+
+
+def get_google_oauth_url(redirect_uri: str = "") -> dict:
+    """
+    Build Google OAuth consent URL for Calendar readonly access.
+    """
+    if not GOOGLE_OAUTH_CLIENT_ID:
+        return {"ok": False, "error": "GOOGLE_OAUTH_CLIENT_ID is not set"}
+
+    resolved_redirect = (redirect_uri or GOOGLE_OAUTH_REDIRECT_URI).strip()
+    if not resolved_redirect:
+        return {"ok": False, "error": "Missing redirect URI"}
+
+    state = secrets.token_urlsafe(24)
+    _oauth_states[state] = time.time() + OAUTH_STATE_TTL_SEC
+    _cleanup_oauth_states()
+
+    params = {
+        "client_id": GOOGLE_OAUTH_CLIENT_ID,
+        "redirect_uri": resolved_redirect,
+        "response_type": "code",
+        "scope": GOOGLE_OAUTH_SCOPE,
+        "access_type": "offline",
+        "prompt": "consent",
+        "include_granted_scopes": "true",
+        "state": state,
+    }
+    return {
+        "ok": True,
+        "auth_url": f"{GOOGLE_OAUTH_AUTH_URL}?{urlencode(params)}",
+        "state": state,
+    }
+
+
+async def exchange_google_oauth_code(code: str, state: str, redirect_uri: str = "") -> dict:
+    """
+    Validate OAuth state, exchange code for token, and return token payload.
+    """
+    code = (code or "").strip()
+    state = (state or "").strip()
+    resolved_redirect = (redirect_uri or GOOGLE_OAUTH_REDIRECT_URI).strip()
+
+    if not code:
+        return {"ok": False, "error": "Missing authorization code"}
+    if not state:
+        return {"ok": False, "error": "Missing OAuth state"}
+    if not _is_valid_oauth_state(state):
+        return {"ok": False, "error": "Invalid or expired OAuth state"}
+    if not GOOGLE_OAUTH_CLIENT_ID or not GOOGLE_OAUTH_CLIENT_SECRET:
+        return {"ok": False, "error": "Google OAuth client credentials are not set"}
+    if not resolved_redirect:
+        return {"ok": False, "error": "Missing redirect URI"}
+
+    payload = {
+        "code": code,
+        "client_id": GOOGLE_OAUTH_CLIENT_ID,
+        "client_secret": GOOGLE_OAUTH_CLIENT_SECRET,
+        "redirect_uri": resolved_redirect,
+        "grant_type": "authorization_code",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(GOOGLE_OAUTH_TOKEN_URL, data=payload)
+        response.raise_for_status()
+        data = response.json()
+        access_token = (data.get("access_token") or "").strip()
+        if not access_token:
+            return {"ok": False, "error": "Google token response missing access_token"}
+        return {"ok": True, "access_token": access_token}
+    except Exception as e:
+        return {"ok": False, "error": f"Google token exchange failed: {e}"}
+
+
+def _is_valid_oauth_state(state: str) -> bool:
+    expiry = _oauth_states.pop(state, None)
+    _cleanup_oauth_states()
+    return bool(expiry and expiry >= time.time())
+
+
+def _cleanup_oauth_states() -> None:
+    now = time.time()
+    expired = [key for key, expiry in _oauth_states.items() if expiry < now]
+    for key in expired:
+        _oauth_states.pop(key, None)
