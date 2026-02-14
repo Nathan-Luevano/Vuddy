@@ -9,21 +9,39 @@ const AUDIO_STATE = {
 
 function resolveAudioUrls(src) {
     if (!src) return [];
-    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:')) {
-        return [src];
-    }
-    if (!src.startsWith('/')) return [src];
+    if (src.startsWith('blob:')) return [src];
 
     const urls = [];
     const backendOriginFromEnv = (import.meta?.env?.VITE_BACKEND_ORIGIN || '').trim();
     if (backendOriginFromEnv) {
-        urls.push(`${backendOriginFromEnv.replace(/\/$/, '')}${src}`);
+        const clean = backendOriginFromEnv.replace(/\/$/, '');
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+            const parsed = new URL(src);
+            urls.push(`${clean}${parsed.pathname}`);
+        } else if (src.startsWith('/')) {
+            urls.push(`${clean}${src}`);
+        }
     }
 
-    // First try same-origin proxy path (works with Vite /api proxy and many LAN setups).
-    urls.push(`${window.location.origin}${src}`);
-    // Then try direct backend host/port path.
-    urls.push(`${window.location.protocol}//${window.location.hostname}:8000${src}`);
+    const isAbsoluteHttp = src.startsWith('http://') || src.startsWith('https://');
+    const parsed = isAbsoluteHttp ? new URL(src) : null;
+    const path = parsed ? parsed.pathname : src;
+
+    // Strong preference: route TTS media to backend :8000 in dev/LAN.
+    if (path && path.startsWith('/api/audio/tts/')) {
+        urls.push(`${window.location.protocol}//${window.location.hostname}:8000${path}`);
+    }
+
+    if (isAbsoluteHttp) {
+        urls.push(src);
+    } else if (src.startsWith('/')) {
+        // Same-origin proxy fallback.
+        urls.push(`${window.location.origin}${src}`);
+        // Direct backend fallback.
+        urls.push(`${window.location.protocol}//${window.location.hostname}:8000${src}`);
+    } else {
+        urls.push(src);
+    }
 
     return [...new Set(urls)];
 }
