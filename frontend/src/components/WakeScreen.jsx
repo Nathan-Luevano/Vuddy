@@ -5,11 +5,12 @@ export default function WakeScreen({ onWake }) {
 
     const handleTap = async () => {
         try {
-            // Create and resume AudioContext to unlock mobile audio
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            await ctx.resume();
-            // Store globally for reuse
-            window.__vuddyAudioCtx = ctx;
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) {
+                const ctx = window.__vuddyAudioCtx || new Ctx();
+                await ctx.resume();
+                window.__vuddyAudioCtx = ctx;
+            }
         } catch (e) {
             console.warn('[WakeScreen] AudioContext init failed:', e);
         }

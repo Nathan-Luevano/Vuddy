@@ -7,9 +7,9 @@ import os
 import asyncio
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from backend import brain, events_service, calendar_service, profile_store, school_config
 from backend.constants import ASSISTANT_STATES, WS_TYPES_IN
@@ -32,7 +32,7 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Range"],
 )
 
 # ── Startup Singletons ──────────────────────────────────────────────
@@ -119,7 +119,7 @@ async def api_events(time_range: str = "today", tags: str = ""):
 async def api_recommendations(count: int = 3):
     """Get personalized event recommendations."""
     from backend import recommender
-    result = recommender.get_recommendations(count=count)
+    result = await recommender.get_recommendations(count=count)
     return result
 
 
@@ -197,12 +197,80 @@ async def api_set_school(body: dict):
 
 
 @app.get("/api/audio/tts/{filename}")
-async def serve_tts_audio(filename: str):
-    """Serve TTS audio files."""
+async def serve_tts_audio(filename: str, request: Request):
+    """
+    Serve TTS audio files with byte-range support.
+    iOS Safari frequently requires 206 partial content for media playback.
+    """
     filepath = os.path.join("data", "audio", "tts", filename)
     if not os.path.exists(filepath):
         return JSONResponse({"ok": False, "error": "File not found"}, status_code=404)
-    return FileResponse(filepath, media_type="audio/mpeg")
+
+    file_size = os.path.getsize(filepath)
+    range_header = request.headers.get("range")
+
+    if range_header:
+        try:
+            range_spec = range_header.replace("bytes=", "")
+            start_s, end_s = range_spec.split("-", 1)
+            start = int(start_s) if start_s else 0
+            end = int(end_s) if end_s else file_size - 1
+            end = min(end, file_size - 1)
+            length = max(0, end - start + 1)
+        except Exception:
+            start, end = 0, file_size - 1
+            length = file_size
+
+        def iter_chunk():
+            with open(filepath, "rb") as f:
+                f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(8192, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(length),
+            "Content-Type": "audio/mpeg",
+        }
+        return StreamingResponse(iter_chunk(), status_code=206, headers=headers, media_type="audio/mpeg")
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(file_size),
+    }
+    return FileResponse(filepath, media_type="audio/mpeg", headers=headers)
+
+
+@app.get("/api/audio/debug/last")
+async def audio_debug_last():
+    """Return recent generated TTS files for debugging playback/cache."""
+    tts_dir = os.path.join("data", "audio", "tts")
+    if not os.path.isdir(tts_dir):
+        return {"ok": True, "files": []}
+
+    files = []
+    for name in os.listdir(tts_dir):
+        if not name.endswith(".mp3"):
+            continue
+        path = os.path.join(tts_dir, name)
+        try:
+            stat = os.stat(path)
+            files.append({
+                "filename": name,
+                "size": stat.st_size,
+                "mtime": stat.st_mtime,
+                "url": f"/api/audio/tts/{name}",
+            })
+        except Exception:
+            continue
+    files.sort(key=lambda item: item["mtime"], reverse=True)
+    return {"ok": True, "files": files[:10]}
 
 
 # ── WebSocket ────────────────────────────────────────────────────────

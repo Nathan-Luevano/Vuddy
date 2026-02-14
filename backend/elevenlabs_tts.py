@@ -14,6 +14,11 @@ TTS_OUTPUT_DIR = os.path.join("data", "audio", "tts")
 MAX_TEXT_LENGTH = 500
 
 
+def _tts_enabled() -> bool:
+    raw = os.getenv("ENABLE_TTS", "true").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
 def _get_api_key() -> str:
     """Read API key at call time (not import time) so dotenv has loaded."""
     return os.getenv("ELEVENLABS_API_KEY", "")
@@ -32,6 +37,10 @@ async def synthesize(text: str) -> str | None:
     Synthesize text to speech via ElevenLabs API.
     Returns file path on success, None on failure (frontend uses browser speechSynthesis as backup).
     """
+    if not _tts_enabled():
+        print("[TTS] ENABLE_TTS is disabled, skipping synthesis")
+        return None
+
     if not text or not text.strip():
         return None
 
@@ -43,13 +52,17 @@ async def synthesize(text: str) -> str | None:
     if len(text) > MAX_TEXT_LENGTH:
         text = text[:MAX_TEXT_LENGTH]
 
+    # Normalize only for cache key (preserve original text for actual synthesis).
+    cache_text = " ".join(text.strip().split())
+
     # Cache key: SHA-256 of voice_id + text
-    cache_key = hashlib.sha256(f"{voice_id}{text}".encode()).hexdigest()[:16]
+    cache_key = hashlib.sha256(f"{voice_id}{cache_text}".encode()).hexdigest()[:16]
     filename = f"{cache_key}.mp3"
     filepath = os.path.join(TTS_OUTPUT_DIR, filename)
 
     # Cache hit: return path immediately
     if os.path.exists(filepath):
+        print(f"[TTS] Cache hit -> {filepath}")
         return filepath
 
     # Ensure output directory exists

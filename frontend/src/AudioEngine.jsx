@@ -9,10 +9,15 @@ export function useAudioContext() {
 export function AudioProvider({ children }) {
     const audioContextRef = useRef(null);
 
-    // Initialize lazily (must be after user gesture in WakeScreen)
+    // Initialize lazily and reuse context unlocked from WakeScreen when available.
     if (!audioContextRef.current) {
         try {
-            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (window.__vuddyAudioCtx) {
+                audioContextRef.current = window.__vuddyAudioCtx;
+            } else if (Ctx) {
+                audioContextRef.current = new Ctx();
+            }
         } catch (e) {
             console.warn('[AudioEngine] Could not create AudioContext:', e);
         }
