@@ -7,24 +7,25 @@ const AUDIO_STATE = {
     PAUSED: 'paused',
 };
 
-function resolveAudioUrl(src) {
-    if (!src) return src;
+function resolveAudioUrls(src) {
+    if (!src) return [];
     if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:')) {
-        return src;
+        return [src];
     }
-    if (!src.startsWith('/')) return src;
+    if (!src.startsWith('/')) return [src];
 
-    const isDev = Boolean(import.meta?.env?.DEV);
+    const urls = [];
     const backendOriginFromEnv = (import.meta?.env?.VITE_BACKEND_ORIGIN || '').trim();
     if (backendOriginFromEnv) {
-        return `${backendOriginFromEnv.replace(/\/$/, '')}${src}`;
+        urls.push(`${backendOriginFromEnv.replace(/\/$/, '')}${src}`);
     }
 
-    if (isDev && window.location.port === '5173') {
-        // In Vite dev, route audio directly to backend to avoid proxy/media-type issues.
-        return `${window.location.protocol}//${window.location.hostname}:8000${src}`;
-    }
-    return `${window.location.origin}${src}`;
+    // First try same-origin proxy path (works with Vite /api proxy and many LAN setups).
+    urls.push(`${window.location.origin}${src}`);
+    // Then try direct backend host/port path.
+    urls.push(`${window.location.protocol}//${window.location.hostname}:8000${src}`);
+
+    return [...new Set(urls)];
 }
 
 export function useAudio(audioContextRef) {
@@ -162,32 +163,40 @@ export function useAudio(audioContextRef) {
                 const blob = new Blob([bytes], { type: mimeType });
                 src = URL.createObjectURL(blob);
                 objectUrlRef.current = src;
-            } else if (src) {
-                src = resolveAudioUrl(src);
             }
 
             if (!src) {
                 setAudioState(AUDIO_STATE.IDLE);
                 return;
             }
-            setLastAudioUrl(src);
 
             const audioEl = getOrCreateAudioEl();
-            audioEl.src = src;
-            audioEl.onended = () => {
-                if (playbackTokenRef.current !== token) return;
-                cleanupObjectUrl();
-                setAudioState(AUDIO_STATE.IDLE);
-            };
+            const candidates = audioB64 ? [src] : resolveAudioUrls(src);
+            let lastError = null;
 
-            await audioEl.play();
-            if (playbackTokenRef.current !== token) {
-                audioEl.pause();
-                return;
+            for (const candidate of candidates) {
+                try {
+                    setLastAudioUrl(candidate);
+                    audioEl.src = candidate;
+                    audioEl.onended = () => {
+                        if (playbackTokenRef.current !== token) return;
+                        cleanupObjectUrl();
+                        setAudioState(AUDIO_STATE.IDLE);
+                    };
+                    await audioEl.play();
+                    if (playbackTokenRef.current !== token) {
+                        audioEl.pause();
+                        return;
+                    }
+                    setAutoplayBlocked(false);
+                    setAudioState(AUDIO_STATE.PLAYING);
+                    return;
+                } catch (err) {
+                    lastError = err;
+                    console.warn(`[Audio] Candidate failed: ${candidate}`, err);
+                }
             }
-
-            setAutoplayBlocked(false);
-            setAudioState(AUDIO_STATE.PLAYING);
+            throw lastError || new Error('No playable audio source');
         } catch (e) {
             console.error('[Audio] Playback failed:', e);
             const errMsg = `[Audio] Playback failed: ${e?.name || 'Error'} ${e?.message || ''}`.trim();
