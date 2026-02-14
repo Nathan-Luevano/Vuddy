@@ -1,0 +1,268 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Vuddy Tool Definitions",
+    "description": "Request args and response shapes for all 7 tools. Backend tool router must conform to these definitions.",
+    "tools": {
+        "get_events": {
+            "description": "Get campus events happening around a time range",
+            "args": {
+                "time_range": {
+                    "type": "string",
+                    "required": true,
+                    "description": "e.g. 'tonight', 'tomorrow', 'this weekend'"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": "string",
+                    "required": false,
+                    "description": "Filter by tags like 'social', 'academic', 'sports'"
+                }
+            },
+            "response": {
+                "ok": {
+                    "type": "boolean"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "title": "string",
+                        "start": "string (ISO 8601)",
+                        "end": "string (ISO 8601)",
+                        "location": "string",
+                        "tags": [
+                            "string"
+                        ],
+                        "description": "string"
+                    }
+                }
+            },
+            "timeout_seconds": 2,
+            "example_args": {
+                "time_range": "tonight",
+                "tags": [
+                    "social"
+                ]
+            },
+            "example_response": {
+                "ok": true,
+                "events": [
+                    {
+                        "title": "Game Night at the JC",
+                        "start": "2026-02-13T19:00:00",
+                        "end": "2026-02-13T22:00:00",
+                        "location": "Johnson Center, Room 340",
+                        "tags": [
+                            "social",
+                            "games",
+                            "free"
+                        ],
+                        "description": "Board games, card games, and video games."
+                    }
+                ]
+            }
+        },
+        "get_recommendations": {
+            "description": "Get personalized event recommendations based on user interests",
+            "args": {
+                "count": {
+                    "type": "integer",
+                    "required": false,
+                    "default": 3,
+                    "description": "Number of recommendations to return"
+                }
+            },
+            "response": {
+                "ok": {
+                    "type": "boolean"
+                },
+                "events": {
+                    "type": "array"
+                },
+                "reasons": {
+                    "type": "array",
+                    "items": "string",
+                    "description": "Why each event was recommended"
+                }
+            },
+            "timeout_seconds": 3,
+            "example_args": {
+                "count": 3
+            },
+            "example_response": {
+                "ok": true,
+                "events": [
+                    {
+                        "title": "Open Mic Night"
+                    }
+                ],
+                "reasons": [
+                    "Matches your interest in live music"
+                ]
+            }
+        },
+        "get_calendar_summary": {
+            "description": "Get upcoming calendar events",
+            "args": {
+                "hours_ahead": {
+                    "type": "integer",
+                    "required": false,
+                    "default": 24,
+                    "description": "How many hours ahead to look"
+                }
+            },
+            "response": {
+                "ok": {
+                    "type": "boolean"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "title": "string",
+                        "start": "string",
+                        "end": "string"
+                    }
+                }
+            },
+            "timeout_seconds": 2,
+            "example_args": {
+                "hours_ahead": 24
+            },
+            "example_response": {
+                "ok": true,
+                "events": [
+                    {
+                        "title": "CS 310 Lecture",
+                        "start": "2026-02-14T09:00:00",
+                        "end": "2026-02-14T10:15:00"
+                    }
+                ]
+            }
+        },
+        "add_calendar_item": {
+            "description": "Add a reminder or event to the calendar",
+            "args": {
+                "title": {
+                    "type": "string",
+                    "required": true
+                },
+                "time_iso": {
+                    "type": "string",
+                    "required": true,
+                    "description": "ISO 8601 datetime"
+                },
+                "notes": {
+                    "type": "string",
+                    "required": false
+                }
+            },
+            "response": {
+                "ok": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                }
+            },
+            "timeout_seconds": 2,
+            "example_args": {
+                "title": "Submit homework",
+                "time_iso": "2026-02-14T23:00:00",
+                "notes": "CS 310 assignment 3"
+            },
+            "example_response": {
+                "ok": true,
+                "id": "cal_abc123"
+            }
+        },
+        "start_study_session": {
+            "description": "Start a Pomodoro-style study session",
+            "args": {
+                "topic": {
+                    "type": "string",
+                    "required": true
+                },
+                "duration_min": {
+                    "type": "integer",
+                    "required": false,
+                    "default": 25
+                }
+            },
+            "response": {
+                "ok": {
+                    "type": "boolean"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string",
+                    "description": "ISO 8601 datetime"
+                }
+            },
+            "timeout_seconds": 1,
+            "example_args": {
+                "topic": "CS 310 Data Structures",
+                "duration_min": 25
+            },
+            "example_response": {
+                "ok": true,
+                "session_id": "study_001",
+                "end_time": "2026-02-13T23:25:00"
+            }
+        },
+        "stop_study_session": {
+            "description": "End an active study session",
+            "args": {
+                "session_id": {
+                    "type": "string",
+                    "required": true
+                }
+            },
+            "response": {
+                "ok": {
+                    "type": "boolean"
+                },
+                "elapsed_min": {
+                    "type": "number"
+                }
+            },
+            "timeout_seconds": 1,
+            "example_args": {
+                "session_id": "study_001"
+            },
+            "example_response": {
+                "ok": true,
+                "elapsed_min": 18.5
+            }
+        },
+        "spotify_search_link": {
+            "description": "Generate a Spotify search URL (no OAuth needed)",
+            "args": {
+                "query": {
+                    "type": "string",
+                    "required": true
+                }
+            },
+            "response": {
+                "ok": {
+                    "type": "boolean"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "display_text": {
+                    "type": "string"
+                }
+            },
+            "timeout_seconds": 1,
+            "example_args": {
+                "query": "lo-fi beats"
+            },
+            "example_response": {
+                "ok": true,
+                "url": "https://open.spotify.com/search/lo-fi%20beats",
+                "display_text": "Open in Spotify: lo-fi beats"
+            }
+        }
+    }
+}

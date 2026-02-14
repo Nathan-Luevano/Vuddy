@@ -1,0 +1,196 @@
+[
+    {
+        "id": "evt_001",
+        "title": "Game Night at the JC",
+        "start": "2026-02-13T19:00:00",
+        "end": "2026-02-13T22:00:00",
+        "location": "Johnson Center, Room 340",
+        "tags": [
+            "social",
+            "games",
+            "free"
+        ],
+        "description": "Board games, card games, and video games. Free pizza while it lasts!"
+    },
+    {
+        "id": "evt_002",
+        "title": "CS Study Group - Data Structures",
+        "start": "2026-02-13T20:00:00",
+        "end": "2026-02-13T22:00:00",
+        "location": "Fenwick Library, 2nd Floor",
+        "tags": [
+            "academic",
+            "cs",
+            "study"
+        ],
+        "description": "Weekly study group for CS 310. Bring your textbook and laptop."
+    },
+    {
+        "id": "evt_003",
+        "title": "Open Mic Night",
+        "start": "2026-02-13T21:00:00",
+        "end": "2026-02-13T23:00:00",
+        "location": "The Hub",
+        "tags": [
+            "entertainment",
+            "music",
+            "free"
+        ],
+        "description": "Sing, play, or just listen. All genres welcome. Sign up at the door."
+    },
+    {
+        "id": "evt_004",
+        "title": "Morning Yoga on the Quad",
+        "start": "2026-02-14T07:00:00",
+        "end": "2026-02-14T08:00:00",
+        "location": "North Quad",
+        "tags": [
+            "wellness",
+            "fitness",
+            "free"
+        ],
+        "description": "Start your day with guided yoga. Mats provided. All levels welcome."
+    },
+    {
+        "id": "evt_005",
+        "title": "Career Fair: Tech Companies",
+        "start": "2026-02-14T10:00:00",
+        "end": "2026-02-14T15:00:00",
+        "location": "Dewberry Hall",
+        "tags": [
+            "career",
+            "tech",
+            "networking"
+        ],
+        "description": "Meet recruiters from top tech companies. Bring your resume. Business casual."
+    },
+    {
+        "id": "evt_006",
+        "title": "HackFax Workshop: Intro to AI",
+        "start": "2026-02-14T13:00:00",
+        "end": "2026-02-14T14:30:00",
+        "location": "Innovation Hall, Room 105",
+        "tags": [
+            "academic",
+            "tech",
+            "workshop"
+        ],
+        "description": "Learn the basics of building with AI APIs. Beginner-friendly workshop by Cloudforce."
+    },
+    {
+        "id": "evt_007",
+        "title": "Basketball: Mason vs. VCU",
+        "start": "2026-02-14T19:00:00",
+        "end": "2026-02-14T21:00:00",
+        "location": "EagleBank Arena",
+        "tags": [
+            "sports",
+            "basketball"
+        ],
+        "description": "A-10 conference game. Student section is free with Mason ID."
+    },
+    {
+        "id": "evt_008",
+        "title": "Movie Night: Interstellar",
+        "start": "2026-02-14T20:00:00",
+        "end": "2026-02-14T23:00:00",
+        "location": "Cinema, Johnson Center",
+        "tags": [
+            "entertainment",
+            "movies",
+            "free"
+        ],
+        "description": "Free screening with popcorn. Doors open at 7:45 PM."
+    },
+    {
+        "id": "evt_009",
+        "title": "Farmers Market",
+        "start": "2026-02-15T09:00:00",
+        "end": "2026-02-15T13:00:00",
+        "location": "Parking Lot K",
+        "tags": [
+            "food",
+            "community",
+            "outdoor"
+        ],
+        "description": "Local vendors with fresh produce, baked goods, and crafts."
+    },
+    {
+        "id": "evt_010",
+        "title": "Hackathon Office Hours",
+        "start": "2026-02-15T11:00:00",
+        "end": "2026-02-15T12:00:00",
+        "location": "Innovation Hall Lobby",
+        "tags": [
+            "tech",
+            "hackathon",
+            "help"
+        ],
+        "description": "Mentors available for debugging, design feedback, and pitch prep."
+    },
+    {
+        "id": "evt_011",
+        "title": "Art Gallery Opening: Student Works",
+        "start": "2026-02-15T17:00:00",
+        "end": "2026-02-15T20:00:00",
+        "location": "Art & Design Building",
+        "tags": [
+            "arts",
+            "culture",
+            "free"
+        ],
+        "description": "Showcasing semester projects from BFA and MFA students. Light refreshments."
+    },
+    {
+        "id": "evt_012",
+        "title": "Salsa Dancing Lessons",
+        "start": "2026-02-15T19:00:00",
+        "end": "2026-02-15T21:00:00",
+        "location": "RAC Multipurpose Room",
+        "tags": [
+            "social",
+            "dance",
+            "fitness"
+        ],
+        "description": "No partner or experience needed. Taught by GMU Latin Dance Club."
+    },
+    {
+        "id": "evt_013",
+        "title": "Late Night Breakfast",
+        "start": "2026-02-15T22:00:00",
+        "end": "2026-02-16T00:00:00",
+        "location": "Southside Dining",
+        "tags": [
+            "food",
+            "social",
+            "free"
+        ],
+        "description": "Pancakes, eggs, and coffee. Free for students with meal plan."
+    },
+    {
+        "id": "evt_014",
+        "title": "Opera Performance: The Magic Flute",
+        "start": "2026-02-14T19:30:00",
+        "end": "2026-02-14T22:00:00",
+        "location": "Center for the Arts, Harris Theatre",
+        "tags": [
+            "arts",
+            "music",
+            "opera"
+        ],
+        "description": "GMU Opera presents Mozart's beloved classic. Student tickets $5."
+    },
+    {
+        "id": "evt_015",
+        "title": "Quiet Study Hours",
+        "start": "2026-02-13T18:00:00",
+        "end": "2026-02-13T23:59:00",
+        "location": "Fenwick Library, 4th Floor",
+        "tags": [
+            "academic",
+            "study",
+            "quiet"
+        ],
+        "description": "Designated quiet study zone. No talking, no food. Power outlets at every seat."
+    }
+]
