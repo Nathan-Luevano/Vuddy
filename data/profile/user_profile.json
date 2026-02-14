@@ -1,0 +1,22 @@
+{
+    "interests": [
+        "tech",
+        "gaming",
+        "music",
+        "hackathon",
+        "basketball"
+    ],
+    "preferred_times": [
+        "evening",
+        "weekend"
+    ],
+    "study_habits": {
+        "preferred_method": "pomodoro",
+        "session_length_min": 25,
+        "break_length_min": 5
+    },
+    "preferences": {
+        "notification_style": "brief",
+        "food_preference": "pizza"
+    }
+}

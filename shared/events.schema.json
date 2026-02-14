@@ -1,0 +1,93 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Vuddy Campus Event Schema",
+    "description": "Defines the shape of event objects in data/events_seed.json and API responses.",
+    "event": {
+        "type": "object",
+        "required": [
+            "id",
+            "title",
+            "start",
+            "end",
+            "location",
+            "tags",
+            "description"
+        ],
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Unique event ID, format: evt_NNN"
+            },
+            "title": {
+                "type": "string",
+                "description": "Event title"
+            },
+            "start": {
+                "type": "string",
+                "format": "date-time",
+                "description": "ISO 8601 start datetime"
+            },
+            "end": {
+                "type": "string",
+                "format": "date-time",
+                "description": "ISO 8601 end datetime"
+            },
+            "location": {
+                "type": "string",
+                "description": "Campus location name and room"
+            },
+            "tags": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "Lowercase category tags"
+            },
+            "description": {
+                "type": "string",
+                "description": "Brief description of the event"
+            }
+        }
+    },
+    "valid_tags": [
+        "social",
+        "academic",
+        "sports",
+        "arts",
+        "music",
+        "food",
+        "tech",
+        "wellness",
+        "career",
+        "entertainment",
+        "community",
+        "study",
+        "free",
+        "workshop",
+        "hackathon",
+        "outdoor",
+        "fitness",
+        "dance",
+        "movies",
+        "opera",
+        "games",
+        "quiet",
+        "networking",
+        "basketball",
+        "culture",
+        "help"
+    ],
+    "example": {
+        "id": "evt_001",
+        "title": "Game Night at the JC",
+        "start": "2026-02-13T19:00:00",
+        "end": "2026-02-13T22:00:00",
+        "location": "Johnson Center, Room 340",
+        "tags": [
+            "social",
+            "games",
+            "free"
+        ],
+        "description": "Board games, card games, and video games. Free pizza while it lasts!"
+    }
+}

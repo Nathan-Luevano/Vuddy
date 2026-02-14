@@ -1,0 +1,251 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Vuddy WebSocket Messages",
+    "description": "All WebSocket message types exchanged between frontend and backend.",
+    "frontend_to_backend": {
+        "start_listening": {
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "type": {
+                    "const": "start_listening"
+                }
+            },
+            "example": {
+                "type": "start_listening"
+            }
+        },
+        "stop_listening": {
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "type": {
+                    "const": "stop_listening"
+                }
+            },
+            "example": {
+                "type": "stop_listening"
+            }
+        },
+        "transcript_final": {
+            "required": [
+                "type",
+                "text"
+            ],
+            "properties": {
+                "type": {
+                    "const": "transcript_final"
+                },
+                "text": {
+                    "type": "string",
+                    "description": "Wake-word-stripped utterance"
+                }
+            },
+            "example": {
+                "type": "transcript_final",
+                "text": "what events are happening tonight?"
+            }
+        },
+        "chat": {
+            "required": [
+                "type",
+                "text"
+            ],
+            "properties": {
+                "type": {
+                    "const": "chat"
+                },
+                "text": {
+                    "type": "string",
+                    "description": "Typed input, no wake word needed"
+                }
+            },
+            "example": {
+                "type": "chat",
+                "text": "What's on my calendar tomorrow?"
+            }
+        },
+        "interrupt": {
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "type": {
+                    "const": "interrupt"
+                }
+            },
+            "example": {
+                "type": "interrupt"
+            }
+        }
+    },
+    "backend_to_frontend": {
+        "assistant_state": {
+            "required": [
+                "type",
+                "state"
+            ],
+            "properties": {
+                "type": {
+                    "const": "assistant_state"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "idle",
+                        "listening",
+                        "thinking",
+                        "speaking",
+                        "error"
+                    ]
+                },
+                "wake_word": {
+                    "type": "string",
+                    "description": "Only sent on initial connect"
+                },
+                "llm_provider": {
+                    "type": "string",
+                    "enum": [
+                        "ollama",
+                        "patriotai"
+                    ],
+                    "description": "Only sent on initial connect"
+                }
+            },
+            "example_connect": {
+                "type": "assistant_state",
+                "state": "idle",
+                "wake_word": "hey vuddy",
+                "llm_provider": "ollama"
+            },
+            "example_update": {
+                "type": "assistant_state",
+                "state": "thinking"
+            }
+        },
+        "assistant_text": {
+            "required": [
+                "type",
+                "text"
+            ],
+            "properties": {
+                "type": {
+                    "const": "assistant_text"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "tool_results": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    },
+                    "description": "Optional tool result summaries"
+                }
+            },
+            "example": {
+                "type": "assistant_text",
+                "text": "There's a game night at the JC at 7 PM!",
+                "tool_results": [
+                    {
+                        "tool": "get_events",
+                        "summary": "Found 3 events tonight"
+                    }
+                ]
+            }
+        },
+        "assistant_audio_ready": {
+            "required": [
+                "type",
+                "format"
+            ],
+            "properties": {
+                "type": {
+                    "const": "assistant_audio_ready"
+                },
+                "audio_url": {
+                    "type": "string",
+                    "description": "Relative URL to audio file"
+                },
+                "audio_b64": {
+                    "type": "string",
+                    "description": "Base64-encoded audio (alternative to audio_url)"
+                },
+                "format": {
+                    "type": "string",
+                    "enum": [
+                        "mp3",
+                        "wav"
+                    ]
+                }
+            },
+            "example": {
+                "type": "assistant_audio_ready",
+                "audio_url": "/api/audio/tts/a1b2c3d4.mp3",
+                "format": "mp3"
+            }
+        },
+        "tool_status": {
+            "required": [
+                "type",
+                "tool",
+                "status"
+            ],
+            "properties": {
+                "type": {
+                    "const": "tool_status"
+                },
+                "tool": {
+                    "type": "string",
+                    "enum": [
+                        "get_events",
+                        "get_recommendations",
+                        "get_calendar_summary",
+                        "add_calendar_item",
+                        "start_study_session",
+                        "stop_study_session",
+                        "spotify_search_link"
+                    ]
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "calling",
+                        "done",
+                        "error"
+                    ]
+                }
+            },
+            "example": {
+                "type": "tool_status",
+                "tool": "get_events",
+                "status": "calling"
+            }
+        },
+        "error": {
+            "required": [
+                "type",
+                "message",
+                "recoverable"
+            ],
+            "properties": {
+                "type": {
+                    "const": "error"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "recoverable": {
+                    "type": "boolean"
+                }
+            },
+            "example": {
+                "type": "error",
+                "message": "LLM timeout",
+                "recoverable": true
+            }
+        }
+    }
+}

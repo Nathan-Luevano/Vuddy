@@ -1,0 +1,42 @@
+MASTER_SPEC.md
+PERSON1_BACKEND.md
+PERSON2_FRONTEND.md
+PERSON3_ARDUINO.md
+README.md
+vuddy-specs.zip
+WORKSTREAM_CONTRACTS.md
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesize
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Mac
+.DS_Store
+
+# Generated Audio
+data/audio/tts/*.mp3
