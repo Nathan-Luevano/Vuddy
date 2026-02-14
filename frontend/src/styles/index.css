@@ -744,11 +744,71 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .events-tab__title {
   font-size: var(--font-size-lg);
   font-weight: 700;
+}
+
+.events-tab__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.events-source-pill {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+}
+
+.events-source-pill--live {
+  color: #2ea44f;
+  border-color: rgba(46, 164, 79, 0.35);
+  background: rgba(46, 164, 79, 0.08);
+}
+
+.events-search {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.events-search__input {
+  flex: 1 1 280px;
+  min-width: 220px;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--bg-elevated);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.events-search__input:focus {
+  border-color: var(--accent-blue);
+}
+
+.events-search__btn {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--accent-teal);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.events-search__btn--secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .recommend-btn {
@@ -776,6 +836,7 @@ button {
   background: var(--bg-surface);
   border-radius: var(--radius-md);
   padding: var(--space-md);
+  border: 1px solid rgba(107, 163, 214, 0.15);
   animation: slide-up var(--transition-normal);
 }
 
@@ -825,6 +886,29 @@ button {
   font-size: var(--font-size-xs);
   color: var(--accent-teal);
   font-style: italic;
+}
+
+.event-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.event-bubble {
+  border: 1px solid var(--bg-elevated);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.event-bubble--primary {
+  background: rgba(102, 213, 202, 0.14);
+  color: var(--accent-teal);
+  border-color: rgba(102, 213, 202, 0.35);
 }
 
 .events-tab__empty {

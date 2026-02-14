@@ -62,6 +62,7 @@ export const API = {
     CALENDAR_ADD: '/api/calendar/add',
     CALENDAR_IMPORT_GOOGLE: '/api/calendar/import/google',
     PROFILE: '/api/profile',
+    SCHOOL: '/api/school',
     HEALTH: '/health',
 };
 

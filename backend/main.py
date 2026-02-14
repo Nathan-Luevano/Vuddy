@@ -129,6 +129,12 @@ async def api_events_search(q: str, city: str = "", size: int = 10):
     return await events_service.search_realtime_events(query=q, city=city, size=size)
 
 
+@app.get("/api/events/discover")
+async def api_events_discover(city: str = "", size: int = 12):
+    """Get a live discovery feed for campus/student events."""
+    return await events_service.discover_events(city=city, size=size)
+
+
 @app.get("/api/calendar/summary")
 async def api_calendar_summary(hours_ahead: int = 24):
     """Get upcoming calendar events."""
